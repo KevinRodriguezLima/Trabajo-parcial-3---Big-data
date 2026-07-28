@@ -1,0 +1,99 @@
+name: audiencias
+
+services:
+  kafka:
+    image: ${KAFKA_IMAGE}
+    container_name: audiencias-kafka
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Dos listeners de datos: los contenedores resuelven `kafka`, el host no.
+      # Con uno solo, advertised.listeners queda mal para uno de los dos mundos.
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # Sin autocreación: un topic mal escrito nacería con 1 partición y
+      # rompería el particionado del contrato en silencio.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS}
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:29092"
+    volumes:
+      # Volumen nombrado, no bind-mount: en Docker Desktop el bind-mount pasa
+      # por virtiofs y castiga el I/O del log justo en las corridas de carga.
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test:
+        - CMD
+        - /opt/kafka/bin/kafka-broker-api-versions.sh
+        - --bootstrap-server
+        - localhost:9092
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - audiencias
+
+  kafka-ui:
+    image: ${KAFKA_UI_IMAGE}
+    container_name: audiencias-kafka-ui
+    profiles:
+      - tools
+    environment:
+      KAFKA_CLUSTERS_0_NAME: audiencias
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_BOOTSTRAP_INTERNAL}
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "${KAFKA_UI_PORT}:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - audiencias
+
+  simulator:
+    build:
+      context: ../simulator
+    image: audiencias-simulator:local
+    container_name: audiencias-simulator
+    profiles:
+      - sim
+    command:
+      - python
+      - run.py
+      - --scenario
+      - ${SIM_SCENARIO}
+      - --agents
+      - ${SIM_AGENTS}
+      - --duration
+      - ${SIM_DURATION}
+      - --speed
+      - ${SIM_SPEED}
+      - --no-console
+    volumes:
+      # Solo escribe JSONL. No habla con Kafka: producers/ los lee después.
+      - ./data/simulator-output:/app/output
+    networks:
+      - audiencias
+
+networks:
+  audiencias:
+    name: audiencias
+
+volumes:
+  kafka-data:
+    name: audiencias-kafka-data
