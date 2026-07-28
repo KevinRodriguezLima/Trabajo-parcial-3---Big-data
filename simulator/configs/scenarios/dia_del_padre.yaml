@@ -1,0 +1,21 @@
+scenario:
+  name: DIA_DEL_PADRE
+  activity_multiplier: 1.50
+  purchase_multiplier: 1.60
+  add_to_cart_multiplier: 1.40
+  payment_failure_multiplier: 1.05
+  discount_by_category:
+    TECNOLOGIA: 0.14
+    DEPORTES: 0.15
+    MODA: 0.12
+  category_boosts:
+    TECNOLOGIA: 2.1
+    DEPORTES: 2.0
+    MODA: 1.4
+  profile_activity_multipliers:
+    CLIENTE_ESTACIONAL: 3.1
+  background_event_weights:
+    GPS_UPDATE: 1.0
+    IOT_READING: 0.8
+    MOTION_DETECTED: 1.0
+    SOCIAL_POST: 1.8

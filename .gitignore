@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+
+# IDE / sistema
+.DS_Store
+.idea/
+.vscode/
+
+# Salidas de A
+simulator/output/*
+!simulator/output/.gitkeep
+
+# Datos locales de infraestructura
+infra/data/
+infra/checkpoints/
+infra/savepoints/
+
+# Builds de B, C y D
+dist/
+build/
+target/
+node_modules/
+.next/
+coverage/
+
+# Evidencias pesadas; documentar su ubicación en docs/reports
+artifacts/

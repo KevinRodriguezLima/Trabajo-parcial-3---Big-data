@@ -1,0 +1,12 @@
+[
+  {"city":"Arequipa","region":"AREQUIPA","latitude":-16.4090,"longitude":-71.5375,"weight":2.2},
+  {"city":"Lima","region":"LIMA","latitude":-12.0464,"longitude":-77.0428,"weight":4.0},
+  {"city":"Cusco","region":"CUSCO","latitude":-13.5319,"longitude":-71.9675,"weight":1.3},
+  {"city":"Trujillo","region":"LA_LIBERTAD","latitude":-8.1116,"longitude":-79.0288,"weight":1.5},
+  {"city":"Piura","region":"PIURA","latitude":-5.1945,"longitude":-80.6328,"weight":1.2},
+  {"city":"Chiclayo","region":"LAMBAYEQUE","latitude":-6.7714,"longitude":-79.8409,"weight":1.1},
+  {"city":"Ica","region":"ICA","latitude":-14.0678,"longitude":-75.7286,"weight":0.9},
+  {"city":"Tacna","region":"TACNA","latitude":-18.0146,"longitude":-70.2536,"weight":0.8},
+  {"city":"Puno","region":"PUNO","latitude":-15.8402,"longitude":-70.0219,"weight":0.8},
+  {"city":"Huancayo","region":"JUNIN","latitude":-12.0651,"longitude":-75.2049,"weight":0.9}
+]

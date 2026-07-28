@@ -1,0 +1,15 @@
+PARTE A - INICIO RÁPIDO
+
+1) cd parte_a_simulador
+2) python3 -m venv .venv
+3) source .venv/bin/activate
+4) pip install -r requirements.txt
+5) python run.py --scenario BASE --agents 50 --duration 10 --speed 3600
+6) python scripts/validate_output.py output/base/events.jsonl
+7) python -m unittest discover -s tests -v
+
+Corrida fuerte:
+python run.py --scenario BLACK_FRIDAY --agents 500 --duration 60 --speed 3600 --no-console
+
+Todos los escenarios:
+AGENTS=300 DURATION=30 SPEED=3600 ./scripts/run_all_scenarios.sh

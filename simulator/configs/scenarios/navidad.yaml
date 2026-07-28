@@ -1,0 +1,21 @@
+scenario:
+  name: NAVIDAD
+  activity_multiplier: 1.65
+  purchase_multiplier: 1.70
+  add_to_cart_multiplier: 1.45
+  payment_failure_multiplier: 1.10
+  discount_by_category:
+    JUGUETES: 0.18
+    TECNOLOGIA: 0.12
+    HOGAR: 0.10
+  category_boosts:
+    JUGUETES: 3.2
+    TECNOLOGIA: 1.7
+    HOGAR: 1.4
+  profile_activity_multipliers:
+    CLIENTE_ESTACIONAL: 3.2
+  background_event_weights:
+    GPS_UPDATE: 1.0
+    IOT_READING: 1.0
+    MOTION_DETECTED: 1.4
+    SOCIAL_POST: 1.8

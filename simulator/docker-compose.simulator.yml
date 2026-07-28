@@ -1,0 +1,18 @@
+services:
+  simulator:
+    build: .
+    container_name: audience-simulator-a
+    command:
+      - python
+      - run.py
+      - --scenario
+      - ${SCENARIO:-BASE}
+      - --agents
+      - ${AGENTS:-120}
+      - --duration
+      - ${DURATION:-20}
+      - --speed
+      - ${SPEED:-3600}
+      - --no-console
+    volumes:
+      - ./output:/app/output

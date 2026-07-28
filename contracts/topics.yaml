@@ -1,0 +1,21 @@
+version: "1.0"
+partition_key: user_id
+topics:
+  user-events:
+    partitions: 4
+    event_types:
+      [LOGIN, SEARCH, PAGE_VIEW, VIEW_PRODUCT, ADD_TO_CART, REMOVE_FROM_CART]
+  purchase-events:
+    partitions: 2
+    event_types: [PURCHASE, PAYMENT_FAILED]
+  iot-events:
+    partitions: 2
+    event_types: [GPS_UPDATE, IOT_READING, MOTION_DETECTED]
+  system-events:
+    partitions: 1
+    event_types: [SOCIAL_POST]
+    note: Los eventos de control requieren un contrato adicional.
+  dead-letter:
+    partitions: 1
+    event_types: []
+    note: Recibe mensajes que no cumplen el esquema.

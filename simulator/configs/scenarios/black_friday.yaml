@@ -1,0 +1,25 @@
+scenario:
+  name: BLACK_FRIDAY
+  activity_multiplier: 2.50
+  purchase_multiplier: 2.35
+  add_to_cart_multiplier: 2.20
+  payment_failure_multiplier: 1.70
+  discount_by_category:
+    TECNOLOGIA: 0.28
+    HOGAR: 0.22
+    MODA: 0.25
+    DEPORTES: 0.18
+  category_boosts:
+    TECNOLOGIA: 3.0
+    HOGAR: 1.8
+    MODA: 1.8
+    DEPORTES: 1.4
+  profile_activity_multipliers:
+    COMPRADOR_COMPULSIVO: 1.8
+    COMPARADOR: 1.5
+    CLIENTE_ESTACIONAL: 4.2
+  background_event_weights:
+    GPS_UPDATE: 0.8
+    IOT_READING: 1.0
+    MOTION_DETECTED: 1.4
+    SOCIAL_POST: 2.8

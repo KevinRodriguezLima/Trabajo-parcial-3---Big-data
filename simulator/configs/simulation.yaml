@@ -1,0 +1,10 @@
+simulation:
+  agents: 120
+  duration_real_seconds: 20
+  virtual_start: "2026-07-25T18:00:00-05:00"
+  speed_factor: 3600
+  seed: 20260725
+  output_dir: "output"
+  console_sample_limit: 15
+  background_interval_min_seconds: 0.18
+  background_interval_max_seconds: 0.55

@@ -1,0 +1,19 @@
+scenario:
+  name: CAMPANA_ESCOLAR
+  activity_multiplier: 1.45
+  purchase_multiplier: 1.50
+  add_to_cart_multiplier: 1.40
+  payment_failure_multiplier: 1.00
+  discount_by_category:
+    ESCOLAR: 0.20
+    TECNOLOGIA: 0.10
+  category_boosts:
+    ESCOLAR: 4.5
+    TECNOLOGIA: 1.5
+  profile_activity_multipliers:
+    CLIENTE_ESTACIONAL: 3.5
+  background_event_weights:
+    GPS_UPDATE: 1.0
+    IOT_READING: 0.8
+    MOTION_DETECTED: 1.2
+    SOCIAL_POST: 1.5
