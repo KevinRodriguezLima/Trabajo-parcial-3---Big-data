@@ -11,7 +11,7 @@ importa código de `../simulator/`.
 ```bash
 make setup-b      # dependencias de B en el .venv compartido
 make env-b        # copia infra/.env.example a infra/.env
-make up-b         # levanta el broker
+make up-b         # levanta el broker y el event store
 make topics-b     # crea los topics del contrato
 make describe-b   # compara lo real contra el contrato
 make smoke-b      # publica y consume un evento por topic
@@ -117,8 +117,23 @@ encadenarlos en una verificación.
 El mapa de enrutamiento no vive aquí: está en `../producers/schema.py`,
 derivado de `topics.yaml`. Estos scripts lo importan, nunca al revés.
 
+## Event store
+
+`postgres` guarda lo que se publicó: es el rastro de auditoría de B, no el sink
+de C. `init-db.sql` crea las tablas `events` y `runs` y solo corre cuando el
+volumen está vacío, así que el SQL es idempotente.
+
+El volumen se monta en `/var/lib/postgresql`, no en `/var/lib/postgresql/data`:
+desde Postgres 18 montar el subdirectorio deja el cluster en un estado que la
+imagen rechaza al arrancar.
+
+```bash
+make store-b   # consume hacia PostgreSQL (Ctrl-C vacía el lote y cierra)
+make count-b   # filas por topic y últimas corridas
+make psql-b    # consola SQL
+```
+
 ## Pendientes acordados
 
-- **Persistencia**: falta decidir el motor con C, que es quien define el sink
-  de Flink. `compose.yaml` no lo incluye todavía.
+- **Sink de Flink**: lo define C. El event store de B no lo reemplaza.
 - **Dashboard**: pendiente hasta que D publique su servicio.
