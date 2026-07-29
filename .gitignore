@@ -34,3 +34,4 @@ coverage/
 
 # Evidencias pesadas; documentar su ubicación en docs/reports
 artifacts/
+CLAUDE.md
