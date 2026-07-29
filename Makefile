@@ -30,7 +30,7 @@ all-scenarios-a:
 
 .PHONY: help-b setup-b env-b up-b up-tools-b up-flink-b down-b down-flink-b \
 	ps-b logs-b sim-b topics-b describe-b evidence-b smoke-b test-b reset-b \
-	produce-b store-b psql-b count-b
+	produce-b store-b psql-b count-b bench-b failover-b
 
 COMPOSE_B := docker compose --env-file infra/.env -f infra/compose.yaml
 COMPOSE_FLINK_B := $(COMPOSE_B) -f infra/compose.flink.yaml
@@ -53,6 +53,8 @@ help-b:
 	@echo "produce-b        Publicar un JSONL del simulador (FILE, RATE, LIMIT)"
 	@echo "store-b          Consumir hacia PostgreSQL (Ctrl-C para cerrar)"
 	@echo "count-b          Contar lo almacenado en el event store"
+	@echo "bench-b          Medir throughput y latencia (SCENARIO, DURATION)"
+	@echo "failover-b       Tumbar el broker a media corrida y medir la pérdida"
 	@echo "psql-b           Abrir psql contra el event store"
 	@echo "test-b           Ejecutar las pruebas de B"
 	@echo "reset-b          Borrar los volúmenes del stack (destructivo)"
@@ -107,6 +109,8 @@ smoke-b:
 FILE ?= simulator/output/base/events.jsonl
 RATE ?=
 LIMIT ?=
+SCENARIO ?= BASE
+DURATION ?= 20
 
 produce-b:
 	$(PYTHON) producers/run.py --file $(FILE) \
@@ -114,6 +118,12 @@ produce-b:
 
 store-b:
 	$(PYTHON) producers/consumer_store.py
+
+bench-b:
+	$(PYTHON) producers/benchmark.py --scenario $(SCENARIO) --duration $(DURATION)
+
+failover-b: env-b
+	./infra/scripts/test_failover.sh
 
 count-b: env-b
 	@$(COMPOSE_B) exec -T postgres psql -U $${POSTGRES_USER:-audiencias} \

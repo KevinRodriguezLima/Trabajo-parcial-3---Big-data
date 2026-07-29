@@ -113,6 +113,12 @@ encadenarlos en una verificación.
 - `smoke_test.py` — publica un evento por topic de negocio más uno al
   `dead-letter`, verifica que la partición que informa el broker coincide con
   la que calcula el particionador por `user_id`, y consume todo de vuelta.
+- `test_failover.sh` — publica sin parar, detiene el broker a los 15 segundos,
+  lo levanta a los 30 y compara publicados, confirmados y filas almacenadas.
+  Usa un grupo de consumidor nuevo que arranca al final de los topics, para
+  medir solo esa corrida y no lo que haya quedado de un benchmark previo. El
+  broker vuelve a levantarse aunque la prueba falle a mitad de camino.
+  Parámetros por entorno: `FILE`, `RATE`, `LIMIT`, `OUTAGE_AT`, `RECOVERY_AT`.
 
 El mapa de enrutamiento no vive aquí: está en `../producers/schema.py`,
 derivado de `topics.yaml`. Estos scripts lo importan, nunca al revés.

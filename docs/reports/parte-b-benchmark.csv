@@ -1,0 +1,3 @@
+configuracion,linger_ms,compresion,escenario,segundos,publicados,enviados,rechazados,fallidos,eventos_por_segundo,latencia_p50_ms,latencia_p95_ms,latencia_p99_ms,latencia_promedio_ms,latencia_max_ms
+linger0-sin-compresion,0,none,BASE,20.0,1356494,1356494,0,0,67820.4,1.0,2.15,4.93,1.75,513.48
+linger10-lz4,10,lz4,BASE,20.0,1631965,1631965,0,0,81585.7,5.98,10.65,11.7,6.46,510.01

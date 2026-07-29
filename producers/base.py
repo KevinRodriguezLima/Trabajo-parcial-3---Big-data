@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Any
@@ -64,9 +65,11 @@ class BaseProducer:
         source: Source | str,
         acks: str = "all",
         extra_config: Mapping[str, Any] | None = None,
+        latency_observer: Callable[[float], None] | None = None,
     ) -> None:
         self.channel: ChannelConfig = channel_for(source)
         self.counters = Counters()
+        self._latency_observer = latency_observer
         config: dict[str, Any] = {
             "bootstrap.servers": bootstrap,
             "client.id": self.channel.client_id,
@@ -86,6 +89,9 @@ class BaseProducer:
 
     def publish(self, envelope: Any) -> bool:
         """Devuelve True si salió a un topic de negocio, False si fue rechazado."""
+        # El reloj arranca aquí, no en el enriquecimiento: la latencia que
+        # importa incluye validar y serializar, no solo el viaje al broker.
+        entrada = time.monotonic()
         try:
             validate_input(envelope)
             self._check_routing(envelope)
@@ -104,6 +110,7 @@ class BaseProducer:
             key=event["user_id"],
             value=event,
             dead_letter=False,
+            entrada=entrada,
         )
         self.counters.publicados += 1
         return True
@@ -153,29 +160,28 @@ class BaseProducer:
                 f"El canal {self.channel.source.value} recibió un evento de {source_hint!r}"
             )
 
-    def _produce(self, topic: str, *, key: str | None, value: Any, dead_letter: bool) -> None:
+    def _produce(
+        self,
+        topic: str,
+        *,
+        key: str | None,
+        value: Any,
+        dead_letter: bool,
+        entrada: float | None = None,
+    ) -> None:
         encoded_key = key.encode("utf-8") if key is not None else None
         payload = serialize(value)
+        callback = self._on_delivery(dead_letter, entrada)
         try:
-            self._producer.produce(
-                topic,
-                key=encoded_key,
-                value=payload,
-                on_delivery=self._on_delivery(dead_letter),
-            )
+            self._producer.produce(topic, key=encoded_key, value=payload, on_delivery=callback)
         except BufferError:
             # Cola local llena: poll drena acuses y libera espacio.
             self._producer.poll(1.0)
-            self._producer.produce(
-                topic,
-                key=encoded_key,
-                value=payload,
-                on_delivery=self._on_delivery(dead_letter),
-            )
+            self._producer.produce(topic, key=encoded_key, value=payload, on_delivery=callback)
         # poll(0) ejecuta los callbacks ya listos sin bloquear el envío.
         self._producer.poll(0)
 
-    def _on_delivery(self, dead_letter: bool):
+    def _on_delivery(self, dead_letter: bool, entrada: float | None = None):
         def callback(err: Any, msg: Any) -> None:
             if err is not None:
                 self.counters.fallidos += 1
@@ -183,5 +189,7 @@ class BaseProducer:
                 return
             if not dead_letter:
                 self.counters.enviados += 1
+                if self._latency_observer is not None and entrada is not None:
+                    self._latency_observer((time.monotonic() - entrada) * 1000.0)
 
         return callback

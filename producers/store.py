@@ -36,12 +36,25 @@ INSERT_EVENTS = (
     + ") ON CONFLICT (event_id) DO NOTHING"
 )
 
+RUN_COLUMNS: tuple[str, ...] = (
+    "run_id",
+    "source_file",
+    "rate",
+    "started_at",
+    "finished_at",
+    "publicados",
+    "enviados",
+    "rechazados",
+    "fallidos",
+    "notes",
+)
+
 INSERT_RUN = (
     "INSERT INTO runs ("
-    "run_id, source_file, rate, started_at, finished_at, "
-    "publicados, enviados, rechazados, fallidos"
-    ") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
-    "ON CONFLICT (run_id) DO NOTHING"
+    + ", ".join(RUN_COLUMNS)
+    + ") VALUES ("
+    + ", ".join(["%s"] * len(RUN_COLUMNS))
+    + ") ON CONFLICT (run_id) DO NOTHING"
 )
 
 DEFAULT_DSN = "postgresql://audiencias:audiencias@localhost:5432/audiencias"

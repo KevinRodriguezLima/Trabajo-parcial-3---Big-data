@@ -93,9 +93,21 @@ class Pacer:
 class Router:
     """Un producer por fuente; reparte según `source_hint`."""
 
-    def __init__(self, *, bootstrap: str) -> None:
+    def __init__(
+        self,
+        *,
+        bootstrap: str,
+        extra_config: dict[str, Any] | None = None,
+        latency_observer: Callable[[float], None] | None = None,
+    ) -> None:
         self.producers: dict[Source, BaseProducer] = {
-            source: BaseProducer(bootstrap=bootstrap, source=source) for source in Source
+            source: BaseProducer(
+                bootstrap=bootstrap,
+                source=source,
+                extra_config=extra_config,
+                latency_observer=latency_observer,
+            )
+            for source in Source
         }
         # Las líneas que no se pueden enrutar igual deben llegar al
         # dead-letter; cualquier producer sirve para emitirlas.
@@ -212,6 +224,7 @@ def _record_run(
         counters.enviados,
         counters.rechazados,
         counters.fallidos,
+        None,
     )
     try:
         with psycopg.connect(dsn_from_env(), connect_timeout=5) as conn:

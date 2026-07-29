@@ -50,6 +50,7 @@ intacto. Nunca se descarta en silencio.
 | `base.py` | `BaseProducer`: publicación y contadores | sí |
 | `run.py` | CLI de reproducción del JSONL | sí |
 | `consumer_store.py` | consumidor hacia PostgreSQL | sí |
+| `benchmark.py` | throughput máximo y percentiles de latencia | sí |
 
 Las tablas de validación y enrutamiento no están escritas a mano: salen de
 `../contracts/`. Si el contrato cambia, las pruebas fallan solas.

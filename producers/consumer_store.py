@@ -84,8 +84,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--topics", nargs="+", default=list(BUSINESS_TOPICS))
     parser.add_argument("--batch-size", type=int, default=500)
     parser.add_argument("--batch-seconds", type=float, default=2.0)
+    parser.add_argument(
+        "--from-latest",
+        action="store_true",
+        help="Arranca al final del topic en vez de recuperar el histórico",
+    )
     parser.add_argument("--verbose", action="store_true")
     return parser
+
+
+def _on_assign(consumer: Consumer, partitions: list[Any]) -> None:
+    # El mensaje es la señal de que ya se puede empezar a publicar: quien
+    # arranca en `latest` se perdería lo enviado antes de la asignación.
+    LOGGER.info("particiones asignadas: %d", len(partitions))
 
 
 def main() -> None:
@@ -106,7 +117,7 @@ def main() -> None:
         {
             "bootstrap.servers": args.bootstrap,
             "group.id": args.group_id,
-            "auto.offset.reset": "earliest",
+            "auto.offset.reset": "latest" if args.from_latest else "earliest",
             "enable.auto.commit": False,
         }
     )
@@ -117,7 +128,7 @@ def main() -> None:
         consumer.close()
         raise SystemExit(f"No se pudo conectar a PostgreSQL: {exc}")
 
-    consumer.subscribe(args.topics)
+    consumer.subscribe(args.topics, on_assign=_on_assign)
     LOGGER.info("grupo %s escuchando %s", args.group_id, ", ".join(args.topics))
 
     try:
