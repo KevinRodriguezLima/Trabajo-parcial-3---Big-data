@@ -142,3 +142,29 @@ reset-b: env-b
 	@printf "Escribe 'si' para continuar: "; read answer; [ "$$answer" = "si" ]
 	$(COMPOSE_FLINK_B) down -v
 	rm -rf infra/checkpoints infra/savepoints
+
+# --- Parte C: Flink jobs --------------------------------------------------
+
+.PHONY: setup-c test-c test-integration-c submit-c count-c
+
+setup-c:
+	$(PIP) install -r flink-jobs/requirements.txt
+
+test-c:
+	cd flink-jobs && ../$(PYTHON) -m unittest discover -s tests -v
+
+test-integration-c:
+	cd flink-jobs && ../$(PYTHON) -m unittest tests/test_integration.py -v
+
+submit-c:
+	docker exec audiencias-flink-jobmanager \
+		flink run -py /opt/flink/jobs/src/main.py
+
+count-c: env-b
+	@$(COMPOSE_B) exec -T postgres psql -U $${POSTGRES_USER:-audiencias} \
+		-d $${POSTGRES_DB:-audiencias} -c \
+		"SELECT metric_type, count(*) FROM flink_metrics GROUP BY 1 ORDER BY 1;" -c \
+		"SELECT audience_type, count(*) FROM audience_classifications GROUP BY 1 ORDER BY 1;" -c \
+		"SELECT alert_type, severity, count(*) FROM alerts_anomalies GROUP BY 1, 2 ORDER BY 1;"
+
+

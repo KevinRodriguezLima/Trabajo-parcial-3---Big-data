@@ -19,3 +19,36 @@ topics:
     partitions: 1
     event_types: []
     note: Recibe mensajes que no cumplen el esquema.
+
+output_topics:
+  metrics.throughput:
+    partitions: 1
+    description: Eventos por segundo agregados por ventana
+  metrics.active-users:
+    partitions: 1
+    description: Conteo de usuarios activos únicos por ventana
+  metrics.events-by-type:
+    partitions: 1
+    description: Distribución de eventos por tipo
+  metrics.top-products-viewed:
+    partitions: 1
+    description: Ranking de productos más vistos
+  metrics.top-products-purchased:
+    partitions: 1
+    description: Ranking de productos más comprados
+  metrics.purchases-by-region:
+    partitions: 1
+    description: Compras y montos acumulados por región
+  metrics.conversion:
+    partitions: 1
+    description: Funnel de conversión (views -> cart -> purchase)
+  metrics.trends:
+    partitions: 1
+    description: Series de tiempo para tendencias
+  audiences.classifications:
+    partitions: 2
+    description: Clasificación de usuarios en las 7 audiencias
+  alerts.anomalies:
+    partitions: 1
+    description: Alertas y detección de anomalías
+

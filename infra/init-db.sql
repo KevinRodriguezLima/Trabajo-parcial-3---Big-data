@@ -51,3 +51,46 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 CREATE INDEX IF NOT EXISTS runs_started_at_idx ON runs (started_at DESC);
+
+-- Tablas de salida para la Parte C (Flink Sinks) consumidas por Parte D
+CREATE TABLE IF NOT EXISTS flink_metrics (
+    id                  BIGSERIAL   PRIMARY KEY,
+    metric_type         TEXT        NOT NULL,
+    window_start        TIMESTAMPTZ NOT NULL,
+    window_end          TIMESTAMPTZ NOT NULL,
+    payload             JSONB       NOT NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS flink_metrics_type_window_idx ON flink_metrics (metric_type, window_start DESC);
+
+CREATE TABLE IF NOT EXISTS audience_classifications (
+    id                  BIGSERIAL   PRIMARY KEY,
+    user_id             TEXT        NOT NULL,
+    audience_type       TEXT        NOT NULL,
+    action              TEXT        NOT NULL DEFAULT 'ADDED',
+    confidence          NUMERIC     NOT NULL DEFAULT 1.0,
+    evidence            JSONB,
+    detected_at         TIMESTAMPTZ NOT NULL,
+    expires_at          TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS audience_classif_user_idx ON audience_classifications (user_id, audience_type);
+CREATE INDEX IF NOT EXISTS audience_classif_type_idx ON audience_classifications (audience_type, detected_at DESC);
+
+CREATE TABLE IF NOT EXISTS alerts_anomalies (
+    alert_id            TEXT        PRIMARY KEY,
+    alert_type          TEXT        NOT NULL,
+    severity            TEXT        NOT NULL,
+    message             TEXT        NOT NULL,
+    current_value       NUMERIC,
+    threshold_value     NUMERIC,
+    window_start        TIMESTAMPTZ,
+    window_end          TIMESTAMPTZ,
+    detected_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS alerts_type_severity_idx ON alerts_anomalies (alert_type, severity, detected_at DESC);
+

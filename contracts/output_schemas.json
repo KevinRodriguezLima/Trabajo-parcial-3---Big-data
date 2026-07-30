@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://proyecto-final-3.local/contracts/output_schemas.json",
+  "title": "Esquema de Salidas Flink (Métricas, Audiencias y Alertas) v1.0",
+  "type": "object",
+  "$defs": {
+    "throughputMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "events_per_second", "total_events", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "throughput" },
+        "events_per_second": { "type": "number", "minimum": 0 },
+        "total_events": { "type": "integer", "minimum": 0 },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "activeUsersMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "active_users_count", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "active_users" },
+        "active_users_count": { "type": "integer", "minimum": 0 },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "eventsByTypeMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "counts", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "events_by_type" },
+        "counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "topProductsMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "type", "top_products", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "top_products" },
+        "type": { "enum": ["VIEWED", "PURCHASED"] },
+        "top_products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["product_id", "product_name", "category", "count"],
+            "properties": {
+              "product_id": { "type": "string" },
+              "product_name": { "type": "string" },
+              "category": { "type": "string" },
+              "count": { "type": "integer" },
+              "total_revenue": { "type": "number" }
+            }
+          }
+        },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "purchasesByRegionMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "regions", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "purchases_by_region" },
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["region", "purchases_count", "total_amount"],
+            "properties": {
+              "region": { "type": "string" },
+              "purchases_count": { "type": "integer" },
+              "total_amount": { "type": "number" }
+            }
+          }
+        },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "conversionMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "views_count", "cart_additions_count", "purchases_count", "view_to_cart_rate", "cart_to_purchase_rate", "overall_conversion_rate", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "conversion" },
+        "views_count": { "type": "integer" },
+        "cart_additions_count": { "type": "integer" },
+        "purchases_count": { "type": "integer" },
+        "view_to_cart_rate": { "type": "number" },
+        "cart_to_purchase_rate": { "type": "number" },
+        "overall_conversion_rate": { "type": "number" },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "trendsMetric": {
+      "type": "object",
+      "required": ["window_start", "window_end", "metric_type", "events_count", "active_users", "purchases_count", "total_revenue", "processing_timestamp"],
+      "properties": {
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "metric_type": { "const": "trends" },
+        "events_count": { "type": "integer" },
+        "active_users": { "type": "integer" },
+        "purchases_count": { "type": "integer" },
+        "total_revenue": { "type": "number" },
+        "processing_timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "audienceClassification": {
+      "type": "object",
+      "required": ["user_id", "audience_type", "action", "confidence", "evidence", "detected_at"],
+      "properties": {
+        "user_id": { "type": "string" },
+        "audience_type": { "type": "string" },
+        "action": { "enum": ["ADDED", "REMOVED", "UPDATED"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": { "type": "object" },
+        "detected_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "anomalyAlert": {
+      "type": "object",
+      "required": ["alert_id", "alert_type", "severity", "message", "current_value", "threshold_value", "detected_at"],
+      "properties": {
+        "alert_id": { "type": "string" },
+        "alert_type": { "type": "string" },
+        "severity": { "enum": ["INFO", "WARNING", "CRITICAL"] },
+        "message": { "type": "string" },
+        "current_value": { "type": "number" },
+        "threshold_value": { "type": "number" },
+        "window_start": { "type": "string", "format": "date-time" },
+        "window_end": { "type": "string", "format": "date-time" },
+        "detected_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
