@@ -69,7 +69,7 @@ python3 infra/aws/levantar_audiencias_distribuido.py --start \\
   --data-instance-type t3.large \\
   --app-instance-type t3.large \\
   --producer-instance-type t3.small \\
-  --producer-rate 1000 \\
+  --producer-rate 200 \\
   --producer-limit 20000 \\
   --instance-profile LabInstanceProfile
 EOF

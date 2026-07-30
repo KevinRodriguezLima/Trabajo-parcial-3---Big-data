@@ -371,7 +371,7 @@ def main() -> None:
     parser.add_argument("--data-instance-type", default=TIPO_INSTANCIA)
     parser.add_argument("--app-instance-type", default=TIPO_INSTANCIA)
     parser.add_argument("--producer-instance-type", default="t3.small")
-    parser.add_argument("--producer-rate", type=int, default=1000)
+    parser.add_argument("--producer-rate", type=int, default=200)
     parser.add_argument("--producer-limit", type=int, default=20000)
     parser.add_argument("--repo-url", default="https://github.com/KevinRodriguezLima/Trabajo-parcial-3---Big-data.git")
     parser.add_argument("--branch", default="main")
