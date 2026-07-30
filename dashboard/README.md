@@ -1,20 +1,26 @@
-# Parte D — Dashboard e informe
+# Dashboard Big Data
 
-Espacio para el backend consumidor y la interfaz con WebSocket o SSE.
+Dashboard web para monitorear los eventos, productos, regiones, audiencias y alertas del proyecto de Big Data.
 
-Indicadores obligatorios de la guía:
+## Development
 
-1. Usuarios activos.
-2. Eventos por segundo.
-3. Eventos por tipo.
-4. Audiencias detectadas.
-5. Productos más visitados.
-6. Productos más comprados.
-7. Compras por región.
-8. Tendencias temporales.
-9. Conversión de compras.
-10. Alertas.
+Necesitas Node.js y npm, o Bun si prefieres usar el lockfile incluido.
 
-El dashboard debe actualizarse automáticamente y ejecutar evidencia del
-escenario BASE más tres escenarios especiales. D debe consumir contratos de
-salida acordados con C, no topics internos o archivos propios de A.
+```sh
+npm i
+npm run dev
+```
+
+Con Bun:
+
+```sh
+bun install
+bun run dev
+```
+
+## Built with
+
+- TanStack Start
+- TypeScript
+- React
+- Tailwind CSS
