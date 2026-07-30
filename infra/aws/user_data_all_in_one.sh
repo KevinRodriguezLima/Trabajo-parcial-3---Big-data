@@ -71,7 +71,11 @@ else
 fi
 chown -R "${APP_USER}:${APP_USER}" .venv
 
-sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make setup-a setup-b setup-c setup-d"
+if command -v python3.11 >/dev/null 2>&1; then
+  sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make PYTHON3=python3.11 setup-a setup-b setup-c setup-d"
+else
+  sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make setup-a setup-b setup-c setup-d"
+fi
 
 sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make up-flink-b"
 

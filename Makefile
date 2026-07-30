@@ -1,5 +1,6 @@
 .PHONY: help setup-a run-a test-a validate-a all-scenarios-a
 
+PYTHON3 ?= python3
 PYTHON := .venv/bin/python
 PIP := .venv/bin/pip
 
@@ -11,7 +12,7 @@ help:
 	@echo "all-scenarios-a  Ejecutar todos los escenarios de A"
 
 setup-a:
-	python3 -m venv .venv
+	$(PYTHON3) -m venv .venv
 	$(PIP) install -r simulator/requirements.txt
 
 run-a:

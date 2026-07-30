@@ -25,6 +25,8 @@ clona el repositorio desde `origin/main`.
 
 ## Crear
 
+### Opcion todo-en-uno
+
 ```bash
 python3 infra/aws/levantar_audiencias_ec2.py --start \
   --key-name cluster \
@@ -49,6 +51,32 @@ Con esa configuracion, basta:
 python3 infra/aws/levantar_audiencias_ec2.py --start
 ```
 
+### Opcion distribuida
+
+El despliegue distribuido crea 3 instancias:
+
+```text
+DATA     -> Kafka + PostgreSQL + Kafka UI
+APP      -> event-store + procesamiento streaming + backend + dashboard
+PRODUCER -> simulador + productores Kafka continuos
+```
+
+```bash
+python3 infra/aws/levantar_audiencias_distribuido.py --start
+```
+
+Por defecto usa `t3.large` para `DATA` y `APP`, y `t3.small` para `PRODUCER`.
+El productor publica lotes de 5000 eventos a 100 eventos/s en bucle, asi que el
+dashboard sigue recibiendo snapshots en tiempo real por SSE.
+
+Para ajustar la tasa:
+
+```bash
+python3 infra/aws/levantar_audiencias_distribuido.py --start \
+  --producer-rate 150 \
+  --producer-limit 8000
+```
+
 Si quieres sobrescribir subnet o security group del laboratorio:
 
 ```bash
@@ -65,6 +93,12 @@ python3 infra/aws/levantar_audiencias_ec2.py --start \
 python3 infra/aws/levantar_audiencias_ec2.py --check
 ```
 
+Para el modo distribuido:
+
+```bash
+python3 infra/aws/levantar_audiencias_distribuido.py --check
+```
+
 En la EC2:
 
 ```bash
@@ -72,6 +106,21 @@ sudo tail -f /var/log/audiencias-bootstrap.log
 systemctl status audiencias-stream
 systemctl status audiencias-backend
 systemctl status audiencias-dashboard
+```
+
+En el modo distribuido:
+
+```bash
+# DATA
+sudo tail -f /var/log/audiencias-data-bootstrap.log
+
+# APP
+sudo tail -f /var/log/audiencias-app-bootstrap.log
+systemctl status audiencias-event-store audiencias-stream audiencias-backend audiencias-dashboard
+
+# PRODUCER
+sudo tail -f /var/log/audiencias-producer-bootstrap.log
+systemctl status audiencias-producer
 ```
 
 ## URLs
@@ -92,4 +141,10 @@ conectarse al backend realtime por SSE.
 
 ```bash
 python3 infra/aws/levantar_audiencias_ec2.py --delete
+```
+
+Para borrar solo las instancias distribuidas:
+
+```bash
+python3 infra/aws/levantar_audiencias_distribuido.py --delete
 ```

@@ -44,6 +44,7 @@ cat > "${APP_HOME}/crear_proyecto03.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "${PROJECT_DIR}"
+git pull --ff-only
 python3 infra/aws/levantar_audiencias_ec2.py --start \\
   --region us-east-1 \\
   --ami-id ami-03f4fd1e8233bd64d \\
@@ -54,8 +55,27 @@ python3 infra/aws/levantar_audiencias_ec2.py --start \\
   --instance-profile LabInstanceProfile
 EOF
 
-chmod +x "${APP_HOME}/crear_proyecto03.sh"
-chown -R "${APP_USER}:${APP_USER}" "${PROJECT_DIR}" "${APP_HOME}/crear_proyecto03.sh"
+cat > "${APP_HOME}/crear_proyecto03_distribuido.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${PROJECT_DIR}"
+git pull --ff-only
+python3 infra/aws/levantar_audiencias_distribuido.py --start \\
+  --region us-east-1 \\
+  --ami-id ami-03f4fd1e8233bd64d \\
+  --key-name cluster \\
+  --subnet-id subnet-0346fd19f61aafdcd \\
+  --security-group-id sg-00c82fc157b6a0478 \\
+  --data-instance-type t3.large \\
+  --app-instance-type t3.large \\
+  --producer-instance-type t3.small \\
+  --producer-rate 100 \\
+  --producer-limit 5000 \\
+  --instance-profile LabInstanceProfile
+EOF
+
+chmod +x "${APP_HOME}/crear_proyecto03.sh" "${APP_HOME}/crear_proyecto03_distribuido.sh"
+chown -R "${APP_USER}:${APP_USER}" "${PROJECT_DIR}" "${APP_HOME}/crear_proyecto03.sh" "${APP_HOME}/crear_proyecto03_distribuido.sh"
 
 cat > "${APP_HOME}/README_PROYECTO03.txt" <<EOF
 Controlador listo.
@@ -65,6 +85,9 @@ Controlador listo.
 
 2. Crea la instancia todo-en-uno:
    ./crear_proyecto03.sh
+
+   O crea el despliegue distribuido de 3 instancias:
+   ./crear_proyecto03_distribuido.sh
 
 3. Lista instancias creadas:
    cd ${PROJECT_DIR}
@@ -79,3 +102,4 @@ chown "${APP_USER}:${APP_USER}" "${APP_HOME}/README_PROYECTO03.txt"
 
 echo "Controlador Proyecto 03 listo."
 echo "Ejecuta: /home/${APP_USER}/crear_proyecto03.sh"
+echo "Distribuido: /home/${APP_USER}/crear_proyecto03_distribuido.sh"
