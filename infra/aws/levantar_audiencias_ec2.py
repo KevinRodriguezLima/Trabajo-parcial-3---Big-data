@@ -16,6 +16,25 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
+try:
+    from config import (  # type: ignore
+        AMI_ID,
+        INSTANCE_PROFILE,
+        KEY_NAME,
+        REGION,
+        SECURITY_GROUP_ID,
+        SUBNET_ID,
+        TIPO_INSTANCIA,
+    )
+except ImportError:
+    AMI_ID = None
+    INSTANCE_PROFILE = "LabInstanceProfile"
+    KEY_NAME = "cluster"
+    REGION = "us-east-1"
+    SECURITY_GROUP_ID = None
+    SUBNET_ID = None
+    TIPO_INSTANCIA = "t3.small"
+
 PROJECT_TAG = "Audiencias-BigData-Proyecto03"
 USER_DATA_PATH = Path(__file__).resolve().parent / "user_data_all_in_one.sh"
 
@@ -222,16 +241,16 @@ def main() -> None:
     group.add_argument("--check", action="store_true", help="Lista instancias creadas por este script")
     group.add_argument("--delete", action="store_true", help="Termina instancias creadas por este script")
 
-    parser.add_argument("--region", default="us-east-1")
-    parser.add_argument("--ami-id", default=None, help="AMI; si se omite usa Amazon Linux 2023 reciente")
-    parser.add_argument("--instance-type", default="t3.xlarge")
+    parser.add_argument("--region", default=REGION)
+    parser.add_argument("--ami-id", default=AMI_ID, help="AMI; si se omite usa Amazon Linux 2023 reciente")
+    parser.add_argument("--instance-type", default=TIPO_INSTANCIA)
     parser.add_argument("--volume-size", type=int, default=50)
-    parser.add_argument("--key-name", default="cluster", help="KeyPair EC2, sin .pem")
-    parser.add_argument("--security-group-id", default=None, help="Usa un SG existente")
-    parser.add_argument("--subnet-id", default=None)
+    parser.add_argument("--key-name", default=KEY_NAME, help="KeyPair EC2, sin .pem")
+    parser.add_argument("--security-group-id", default=SECURITY_GROUP_ID, help="Usa un SG existente")
+    parser.add_argument("--subnet-id", default=SUBNET_ID)
     parser.add_argument("--vpc-id", default=None)
     parser.add_argument("--ssh-cidr", default="0.0.0.0/0", help="CIDR permitido para SSH si se crea SG")
-    parser.add_argument("--instance-profile", default="LabInstanceProfile")
+    parser.add_argument("--instance-profile", default=INSTANCE_PROFILE)
     parser.add_argument("--repo-url", default="https://github.com/KevinRodriguezLima/Trabajo-parcial-3---Big-data.git")
     parser.add_argument("--branch", default="main")
 

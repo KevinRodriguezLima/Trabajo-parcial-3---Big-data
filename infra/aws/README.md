@@ -30,7 +30,25 @@ python3 infra/aws/levantar_audiencias_ec2.py --start \
   --instance-profile LabInstanceProfile
 ```
 
-Si ya tienes subnet o security group del laboratorio:
+El script lee por defecto `infra/aws/config.py`, que ya contiene:
+
+```python
+REGION = "us-east-1"
+AMI_ID = "ami-03f4fd1e8233bd64d"
+KEY_NAME = "cluster"
+SECURITY_GROUP_ID = "sg-00c82fc157b6a0478"
+SUBNET_ID = "subnet-0346fd19f61aafdcd"
+TIPO_INSTANCIA = "t3.small"
+INSTANCE_PROFILE = "LabInstanceProfile"
+```
+
+Con esa configuracion, basta:
+
+```bash
+python3 infra/aws/levantar_audiencias_ec2.py --start
+```
+
+Si quieres sobrescribir subnet o security group del laboratorio:
 
 ```bash
 python3 infra/aws/levantar_audiencias_ec2.py --start \
