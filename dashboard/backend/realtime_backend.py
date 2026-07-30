@@ -220,12 +220,13 @@ def fetch_sources(conn, scenario: str) -> List[Dict[str, Any]]:
 def fetch_alerts(conn, scenario: str) -> List[Dict[str, Any]]:
     rows = conn.execute(
         """
-        SELECT alert_id, alert_type, severity, message, detected_at
+        SELECT alert_id, alert_type, severity, message, window_end, detected_at
         FROM alerts_anomalies
         ORDER BY detected_at DESC
         LIMIT 50
         """
     ).fetchall()
+    latest_window = max((row["window_end"] or row["detected_at"] for row in rows), default=None)
     return [
         {
             "id": row["alert_id"],
@@ -235,7 +236,7 @@ def fetch_alerts(conn, scenario: str) -> List[Dict[str, Any]]:
             "timestamp": row["detected_at"].isoformat(),
             "component": "Apache Flink",
             "scenario": scenario,
-            "status": "ACTIVA",
+            "status": "ACTIVA" if latest_window and (row["window_end"] or row["detected_at"]) == latest_window else "RECONOCIDA",
         }
         for row in rows
     ]
@@ -611,6 +612,7 @@ def build_snapshot(scenario: str) -> Dict[str, Any]:
         active_users = int(active.get("active_users_count") or 0)
         overall_conversion = float(conversion.get("overall_conversion_rate") or 0) / 100
         alerts = fetch_alerts(conn, scenario)
+        active_alerts = [alert for alert in alerts if alert["status"] == "ACTIVA"]
         viewed_products, purchased_products = build_products(viewed, purchased)
         total_processed = int(throughput.get("total_events") or trends.get("events_count") or 0)
 
@@ -623,7 +625,7 @@ def build_snapshot(scenario: str) -> Dict[str, Any]:
                 "purchase_conversion": overall_conversion,
                 "total_purchases": int(trends.get("purchases_count") or conversion.get("purchases_count") or 0),
                 "total_revenue": float(trends.get("total_revenue") or 0),
-                "active_alerts": len(alerts),
+                "active_alerts": len(active_alerts),
                 "average_latency_ms": 0,
             },
             "sparklines": {
@@ -632,7 +634,7 @@ def build_snapshot(scenario: str) -> Dict[str, Any]:
                 "purchase_conversion": [v / 100 for v in series(fetch_metric_history(conn, "conversion"), "overall_conversion_rate")],
                 "total_purchases": series(fetch_metric_history(conn, "trends"), "purchases_count"),
                 "total_revenue": series(fetch_metric_history(conn, "trends"), "total_revenue"),
-                "active_alerts": [len(alerts)],
+                "active_alerts": [len(active_alerts)],
             },
             "events_by_type": build_events_by_type(events_by_type),
             "event_type_intervals": build_event_type_intervals(conn, scenario),
