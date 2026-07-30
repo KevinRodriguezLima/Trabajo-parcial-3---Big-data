@@ -66,15 +66,15 @@ python3 infra/aws/levantar_audiencias_distribuido.py --start
 ```
 
 Por defecto usa `t3.large` para `DATA` y `APP`, y `t3.small` para `PRODUCER`.
-El productor publica lotes de 5000 eventos a 100 eventos/s en bucle, asi que el
-dashboard sigue recibiendo snapshots en tiempo real por SSE.
+El productor publica lotes de 20000 eventos a 1000 eventos/s en bucle, asi que
+el dashboard sigue recibiendo snapshots en tiempo real por SSE.
 
 Para ajustar la tasa:
 
 ```bash
 python3 infra/aws/levantar_audiencias_distribuido.py --start \
-  --producer-rate 150 \
-  --producer-limit 8000
+  --producer-rate 1000 \
+  --producer-limit 20000
 ```
 
 Si quieres sobrescribir subnet o security group del laboratorio:
