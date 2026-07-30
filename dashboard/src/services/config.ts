@@ -19,7 +19,7 @@ export const APP_CONFIG = {
   sseUrl: env.VITE_SSE_URL || "http://localhost:8000/events/dashboard",
   snapshotUrl: env.VITE_API_URL || "http://localhost:8000/api/dashboard/snapshot",
   tickIntervalMs: 1500,
-  maxSeriesPoints: 240,
+  maxSeriesPoints: 5000,
 } as const;
 
 export const MODE_LABEL: Record<DataMode, string> = {

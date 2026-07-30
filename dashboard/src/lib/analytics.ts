@@ -95,6 +95,23 @@ const RANGE_LABEL: Record<string, string> = {
   all: "toda la ejecución",
 };
 
+const RANGE_MS: Record<string, number> = {
+  "5m": 5 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+  "1h": 60 * 60 * 1000,
+};
+
+export function filterThroughputByRange(
+  throughput: ThroughputPoint[],
+  timeRange: string,
+): ThroughputPoint[] {
+  if (timeRange === "all" || throughput.length === 0) return throughput;
+  const windowMs = RANGE_MS[timeRange];
+  if (!windowMs) return throughput;
+  const latestTimestamp = throughput[throughput.length - 1].timestamp;
+  return throughput.filter((point) => point.timestamp >= latestTimestamp - windowMs);
+}
+
 /** Frase ejecutiva generada por reglas a partir del snapshot vigente. */
 export function buildSystemSummary(
   snapshot: DashboardMetrics | null,
@@ -103,7 +120,8 @@ export function buildSystemSummary(
 ): string {
   if (!snapshot) return "Esperando el primer snapshot del backend consumidor.";
   const cfg = SCENARIO_CONFIG[snapshot.scenario];
-  const comp = periodComparison(throughput.map((p) => p.eps));
+  const visibleThroughput = filterThroughputByRange(throughput, timeRange);
+  const comp = periodComparison(visibleThroughput.map((p) => p.eps));
   const dir = comp.pct >= 0 ? "un incremento" : "una reducción";
   const conv = snapshot.metrics.purchase_conversion * 100;
   const convDelta = snapshot.deltas.purchase_conversion;

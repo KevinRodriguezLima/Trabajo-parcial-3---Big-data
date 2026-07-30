@@ -15,12 +15,11 @@ import { Panel } from "@/components/common/Panel";
 import { ChartSkeleton, EmptyState } from "@/components/common/States";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { formatEps, formatInt } from "@/utils/format";
-import { detectAnomalies, periodComparison, seriesStats } from "@/lib/analytics";
+import { detectAnomalies, filterThroughputByRange, periodComparison, seriesStats } from "@/lib/analytics";
 import { SCENARIO_CONFIG } from "@/data/catalog";
 import { CHART_TOOLTIP_STYLE } from "@/lib/palette";
 import type { ThroughputPoint } from "@/types";
 
-const RANGE_POINTS: Record<string, number> = { "5m": 40, "15m": 100, "1h": 200, all: 240 };
 
 /** Tooltip enriquecido: eps, compras acumuladas y comparación contra el promedio. */
 function ThroughputTooltip({
@@ -57,8 +56,7 @@ export function ThroughputChart({ compact = false }: { compact?: boolean }) {
   const { throughput, loading, filters, setFilters, snapshot } = useRealtimeDashboard();
 
   const data = useMemo(() => {
-    const limit = RANGE_POINTS[filters.timeRange] ?? 60;
-    return throughput.slice(-limit);
+    return filterThroughputByRange(throughput, filters.timeRange);
   }, [throughput, filters.timeRange]);
 
   const stats = useMemo(() => seriesStats(data.map((d) => d.eps)), [data]);
