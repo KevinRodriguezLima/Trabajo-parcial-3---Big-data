@@ -26,7 +26,9 @@ export function KpiCards() {
   const s = snapshot.sparklines;
 
   const topRegion = snapshot.regions[0];
-  const criticas = snapshot.alerts.filter((a) => a.level === "CRITICAL" && a.status === "ACTIVA").length;
+  const criticas = snapshot.alerts.filter(
+    (a) => a.level === "CRITICAL" && a.status === "ACTIVA",
+  ).length;
 
   return (
     <div className="space-y-3">

@@ -80,7 +80,11 @@ export function detectAnomalies(points: ThroughputPoint[], threshold = 1.9): Ano
 }
 
 /** Compara la mitad reciente contra la mitad anterior de la ventana visible. */
-export function periodComparison(values: number[]): { current: number; previous: number; pct: number } {
+export function periodComparison(values: number[]): {
+  current: number;
+  previous: number;
+  pct: number;
+} {
   if (values.length < 2) return { current: values[0] ?? 0, previous: values[0] ?? 0, pct: 0 };
   const half = Math.floor(values.length / 2);
   const previous = values.slice(0, half).reduce((a, b) => a + b, 0) / Math.max(1, half);
@@ -131,7 +135,9 @@ export function buildSystemSummary(
       : `La conversión ${convDelta > 0 ? "subió" : "cayó"} ${Math.abs(convDelta).toFixed(1)} % hasta ${conv.toFixed(2)} %`;
   const topRegion = snapshot.regions[0];
   const failed = snapshot.events_by_type.find((e) => e.event_type === "PAYMENT_FAILED");
-  const critical = snapshot.alerts.filter((a) => a.level === "CRITICAL" && a.status === "ACTIVA").length;
+  const critical = snapshot.alerts.filter(
+    (a) => a.level === "CRITICAL" && a.status === "ACTIVA",
+  ).length;
   const riskText = critical
     ? `Hay ${critical} alerta${critical === 1 ? "" : "s"} crítica${critical === 1 ? "" : "s"} activa${critical === 1 ? "" : "s"}`
     : failed && failed.percentage > 1.2
@@ -160,7 +166,9 @@ export function buildInsights(
         detail: `Concentra ${formatInt(growing.users)} usuarios (${formatPercent(growing.percentage)} de la base segmentada).`,
       });
     }
-    const risky = snapshot.audiences.find((a) => a.id === "riesgo-abandono" || a.id === "abandono-carrito");
+    const risky = snapshot.audiences.find(
+      (a) => a.id === "riesgo-abandono" || a.id === "abandono-carrito",
+    );
     if (risky) {
       push({
         id: "aud-riesgo",
@@ -198,7 +206,9 @@ export function buildInsights(
       conv: p.views > 0 ? p.units / p.views : 0,
     }));
     const avgConv = withConv.reduce((a, b) => a + b.conv, 0) / Math.max(1, withConv.length);
-    const leak = withConv.filter((p) => p.conv < avgConv * 0.75).sort((a, b) => b.views - a.views)[0];
+    const leak = withConv
+      .filter((p) => p.conv < avgConv * 0.75)
+      .sort((a, b) => b.views - a.views)[0];
     if (leak) {
       push({
         id: "prod-fuga",
@@ -278,7 +288,11 @@ export function buildHeatmap(
   bucketCount = 12,
 ): HeatmapData {
   if (throughput.length === 0) {
-    return { buckets: [], rows: eventTypes.map((e) => ({ eventType: e, cells: [], total: 0 })), max: 0 };
+    return {
+      buckets: [],
+      rows: eventTypes.map((e) => ({ eventType: e, cells: [], total: 0 })),
+      max: 0,
+    };
   }
   const size = Math.max(1, Math.ceil(throughput.length / bucketCount));
   const groups: ThroughputPoint[][] = [];
@@ -317,13 +331,18 @@ export function buildHeatmapFromIntervals(matrix?: EventTypeIntervalMatrix): Hea
     });
     return { eventType: row.event_type, cells, total: cells.reduce((a, c) => a + c.value, 0) };
   });
-  rows.forEach((row) => row.cells.forEach((cell) => (cell.intensity = max === 0 ? 0 : cell.value / max)));
+  rows.forEach((row) =>
+    row.cells.forEach((cell) => (cell.intensity = max === 0 ? 0 : cell.value / max)),
+  );
   return { buckets: matrix.buckets, rows, max };
 }
 
 export type Quadrant = "estrella" | "fuga" | "oculto" | "bajo";
 
-export const QUADRANT_META: Record<Quadrant, { label: string; description: string; color: string }> = {
+export const QUADRANT_META: Record<
+  Quadrant,
+  { label: string; description: string; color: string }
+> = {
   estrella: {
     label: "Productos estrella",
     description: "Alta exposición y alta conversión.",
@@ -400,7 +419,12 @@ export function scenarioConclusions(results: ScenarioResult[]): string[] {
 
 /** Normalización 0-100 para el radar de experimentos. */
 export function normalizeForRadar(results: ScenarioResult[]) {
-  const metrics: Array<{ key: string; label: string; get: (r: ScenarioResult) => number; invert?: boolean }> = [
+  const metrics: Array<{
+    key: string;
+    label: string;
+    get: (r: ScenarioResult) => number;
+    invert?: boolean;
+  }> = [
     { key: "eps", label: "Throughput", get: (r) => r.avg_eps },
     { key: "conv", label: "Conversión", get: (r) => r.conversion },
     { key: "rev", label: "Ingresos", get: (r) => r.total_revenue },

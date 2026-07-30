@@ -144,8 +144,14 @@ export class ScenarioEngine {
   private failedPayments = 0;
   private alerts: Alert[] = [];
   private conversionHistory: number[] = [];
-  private previous: { users: number; eps: number; conversion: number; purchases: number; revenue: number; alerts: number } | null =
-    null;
+  private previous: {
+    users: number;
+    eps: number;
+    conversion: number;
+    purchases: number;
+    revenue: number;
+    alerts: number;
+  } | null = null;
   private sparkStore: Record<string, number[]> = {};
 
   constructor(
@@ -281,7 +287,8 @@ export class ScenarioEngine {
       revenue: revenue * 0.93,
       alerts: Math.max(1, activeAlerts - 1),
     };
-    const pct = (curr: number, before: number) => (before === 0 ? 0 : ((curr - before) / before) * 100);
+    const pct = (curr: number, before: number) =>
+      before === 0 ? 0 : ((curr - before) / before) * 100;
     const deltas = {
       active_users: pct(activeUsers, prev.users),
       events_per_second: pct(eps, prev.eps),
@@ -355,19 +362,59 @@ export class ScenarioEngine {
   }
 
   private buildAudiences(activeUsers: number): AudienceMetric[] {
+    const countsByType = Object.fromEntries(
+      EVENT_TYPES.map((type) => [type, Math.round(this.totalEvents * EVENT_WEIGHTS[type])]),
+    ) as Record<(typeof EVENT_TYPES)[number], number>;
+    const purchaseUsers = Math.round(this.totalPurchases * 0.72);
+    const cartUsers = Math.round(this.totalCarts * 0.38);
+    const removeUsers = Math.round(countsByType.REMOVE_FROM_CART * 0.82);
+    const searchUsers = Math.round(countsByType.SEARCH * 0.22);
+    const viewUsers = Math.round(this.totalViews * 0.18);
+    const multiSourceSignals = Math.round(
+      (countsByType.GPS_UPDATE + countsByType.IOT_READING + countsByType.MOTION_DETECTED) * 0.18,
+    );
+    const nightFactor =
+      this.scenario === "BLACK_FRIDAY" || this.scenario === "CYBER_MONDAY" ? 0.32 : 0.22;
+
+    const derivedUsers: Record<string, number> = {
+      COMPRADOR_COMPULSIVO: Math.min(activeUsers, Math.round(purchaseUsers * 0.16)),
+      COMPARADOR_ACTIVO: Math.min(activeUsers, Math.round(Math.min(viewUsers, searchUsers) * 0.42)),
+      CARRITO_ABANDONADO: Math.min(
+        activeUsers,
+        Math.max(0, Math.round((cartUsers - purchaseUsers) * 0.28)),
+      ),
+      COMPRADOR_NOCTURNO: Math.min(
+        activeUsers,
+        Math.round(
+          (countsByType.VIEW_PRODUCT + countsByType.PURCHASE + countsByType.SOCIAL_POST) *
+            nightFactor *
+            0.08,
+        ),
+      ),
+      USUARIO_ALTO_VALOR: Math.min(
+        activeUsers,
+        Math.round(purchaseUsers * 0.11 * (this.cfg().ticket / 320)),
+      ),
+      NAVEGADOR_INDECISO: Math.min(activeUsers, Math.round(Math.min(cartUsers, removeUsers) * 0.3)),
+      USUARIO_MULTI_DISPOSITIVO: Math.min(activeUsers, Math.round(multiSourceSignals)),
+    };
+    const totalSegmented = Math.max(
+      1,
+      Object.values(derivedUsers).reduce((sum, users) => sum + users, 0),
+    );
+
     return AUDIENCES.map((seed, index) => {
-      const bump = this.scenario === "BASE" ? 1 : 1.08;
-      const users = Math.round(activeUsers * seed.weight * bump);
+      const users = derivedUsers[seed.name] ?? 0;
       const rng = createRng(hashString(seed.id + this.scenario));
       const history = Array.from({ length: 12 }, (_, i) =>
-        Math.round(users * (0.7 + rng() * 0.45) * (0.85 + i * 0.015)),
+        Math.max(0, Math.round(users * (0.72 + rng() * 0.4) * (0.86 + i * 0.015))),
       );
       return {
         id: seed.id,
         name: seed.name,
         label: seed.label,
         users,
-        percentage: Number(((users / Math.max(1, activeUsers)) * 100).toFixed(2)),
+        percentage: Number(((users / totalSegmented) * 100).toFixed(2)),
         change: Number(((rng() - 0.4) * 18).toFixed(1)),
         priority: seed.priority,
         description: seed.description,
@@ -376,6 +423,17 @@ export class ScenarioEngine {
         top_products: PRODUCTS.slice(index % 5, (index % 5) + 3).map((p) => p.name),
         top_regions: REGIONS.slice(index % 4, (index % 4) + 3).map((r) => r.region),
         history: seriesFrom(history),
+        evidence: {
+          purchase_events: countsByType.PURCHASE,
+          payment_failed_events: countsByType.PAYMENT_FAILED,
+          gps_events: countsByType.GPS_UPDATE,
+          iot_events: countsByType.IOT_READING,
+          motion_events: countsByType.MOTION_DETECTED,
+          social_events: countsByType.SOCIAL_POST,
+        },
+        recent_detections: users,
+        avg_confidence: users > 0 ? Number((0.72 + rng() * 0.24).toFixed(2)) : 0,
+        last_seen: new Date().toISOString(),
       };
     }).sort((a, b) => b.users - a.users);
   }

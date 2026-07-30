@@ -26,7 +26,8 @@ export const Route = createFileRoute("/alertas")({
       { property: "og:title", content: "Alertas y estado de la plataforma | AudienceStream" },
       {
         property: "og:description",
-        content: "Panel de alertas en tiempo real con reconocimiento, resolución y diagnóstico de infraestructura.",
+        content:
+          "Panel de alertas en tiempo real con reconocimiento, resolución y diagnóstico de infraestructura.",
       },
     ],
   }),
@@ -37,12 +38,17 @@ function AlertasPage() {
   const { snapshot, throughput, filters } = useRealtimeDashboard();
 
   const summary = buildSystemSummary(snapshot, throughput, filters.timeRange);
-  const insights = useMemo(() => buildInsights(snapshot, throughput, "alertas"), [snapshot, throughput]);
+  const insights = useMemo(
+    () => buildInsights(snapshot, throughput, "alertas"),
+    [snapshot, throughput],
+  );
 
-  const alerts = snapshot?.alerts ?? [];
+  const alerts = useMemo(() => snapshot?.alerts ?? [], [snapshot?.alerts]);
   const activeAlerts = alerts.filter((a) => a.status === "ACTIVA");
   const criticalActive = activeAlerts.filter((a) => a.level === "CRITICAL").length;
-  const degradedComponents = (snapshot?.infrastructure ?? []).filter((c) => c.status !== "OPERATIVO").length;
+  const degradedComponents = (snapshot?.infrastructure ?? []).filter(
+    (c) => c.status !== "OPERATIVO",
+  ).length;
 
   // Tiempo medio de reconocimiento estimado: heurística por antigüedad de alertas ya reconocidas/resueltas.
   const avgAckMinutes = useMemo(() => {
@@ -66,11 +72,18 @@ function AlertasPage() {
       estado: a.status,
       timestamp: formatTime(a.timestamp),
     }));
-    downloadFile(`alertas-${snapshot?.scenario ?? "sistema"}.csv`, toCsv(rows), "text/csv;charset=utf-8;");
+    downloadFile(
+      `alertas-${snapshot?.scenario ?? "sistema"}.csv`,
+      toCsv(rows),
+      "text/csv;charset=utf-8;",
+    );
   };
 
   return (
-    <DashboardLayout title="Alertas" subtitle="Gestión de alertas emitidas por los jobs de procesamiento">
+    <DashboardLayout
+      title="Alertas"
+      subtitle="Gestión de alertas emitidas por los jobs de procesamiento"
+    >
       {/* Nivel 1: resumen ejecutivo */}
       <SummaryBanner text={summary} />
 
@@ -110,7 +123,10 @@ function AlertasPage() {
       )}
 
       {/* Nivel 2: gestión completa de alertas */}
-      <SectionHeading title="Gestión de alertas" description="Filtra, reconoce y resuelve las alertas activas" />
+      <SectionHeading
+        title="Gestión de alertas"
+        description="Filtra, reconoce y resuelve las alertas activas"
+      />
       <AlertsPanel maxHeight={640} />
 
       {/* Nivel 3: infraestructura + detalle técnico */}
@@ -124,13 +140,21 @@ function AlertasPage() {
         defaultOpen={false}
         description="Listado tabular completo para exportación y auditoría"
         actions={
-          <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={handleExport}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 text-xs"
+            onClick={handleExport}
+          >
             <Download className="h-3.5 w-3.5" aria-hidden /> Exportar CSV
           </Button>
         }
       >
         {alerts.length === 0 ? (
-          <EmptyState title="Sin alertas registradas" description="No hay alertas en el escenario actual." />
+          <EmptyState
+            title="Sin alertas registradas"
+            description="No hay alertas en el escenario actual."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -148,7 +172,10 @@ function AlertasPage() {
                   <tr key={a.id} className="border-b border-panel-border/60 last:border-0">
                     <td className="py-2 pr-2 font-medium text-foreground">{a.title}</td>
                     <td className="px-2 py-2">
-                      <Badge variant="outline" className={`text-[10px] ${ALERT_STYLE[a.level].badge}`}>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${ALERT_STYLE[a.level].badge}`}
+                      >
                         {ALERT_STYLE[a.level].label}
                       </Badge>
                     </td>

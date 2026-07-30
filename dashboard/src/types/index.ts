@@ -127,6 +127,11 @@ export interface AudienceMetric {
   top_products: string[];
   top_regions: string[];
   history: SeriesPoint[];
+  evidence?: Record<string, string | number | boolean | string[] | number[] | null>;
+  sample_users?: string[];
+  avg_confidence?: number;
+  recent_detections?: number;
+  last_seen?: string;
 }
 
 export interface ProductMetric {

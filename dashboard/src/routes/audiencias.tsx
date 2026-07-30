@@ -20,7 +20,8 @@ export const Route = createFileRoute("/audiencias")({
       { property: "og:title", content: "Audiencias digitales detectadas | AudienceStream" },
       {
         property: "og:description",
-        content: "Detalle de reglas, usuarios y evolución de cada audiencia sobre ventanas deslizantes de eventos.",
+        content:
+          "Detalle de reglas, usuarios y evolución de cada audiencia sobre ventanas deslizantes de eventos.",
       },
     ],
   }),
@@ -40,7 +41,10 @@ function AudienciasPage() {
     : "Esperando el primer snapshot del backend consumidor.";
 
   return (
-    <DashboardLayout title="Audiencias" subtitle="Segmentos detectados por reglas sobre ventanas deslizantes">
+    <DashboardLayout
+      title="Audiencias"
+      subtitle="Segmentos detectados por reglas sobre ventanas deslizantes"
+    >
       {/* Nivel 1: resumen ejecutivo */}
       <SummaryBanner text={summary} />
       <div className="grid gap-4 sm:grid-cols-3">
@@ -54,7 +58,11 @@ function AudienciasPage() {
         <HeroMetricCard
           label="Audiencia dominante"
           value={dominant ? dominant.label : "—"}
-          context={dominant ? `${formatInt(dominant.users)} usuarios · ${formatPercent(dominant.percentage)}` : undefined}
+          context={
+            dominant
+              ? `${formatInt(dominant.users)} usuarios · ${formatPercent(dominant.percentage)}`
+              : undefined
+          }
           icon={Crown}
           tone="especial"
           tooltip="Audiencia con mayor cantidad absoluta de usuarios en el escenario activo."
@@ -78,7 +86,10 @@ function AudienciasPage() {
       )}
 
       {/* Nivel 2: panel principal con treemap y tarjetas */}
-      <SectionHeading title="Detalle de audiencias" description="Explora, filtra y compara cada segmento detectado" />
+      <SectionHeading
+        title="Detalle de audiencias"
+        description="Explora, filtra y compara cada segmento detectado"
+      />
       <AudiencePanel />
 
       {/* Nivel 3: panel técnico con reglas por audiencia */}
@@ -104,11 +115,15 @@ function AudienciasPage() {
               {audiences.flatMap((a) =>
                 a.rules.map((rule, i) => (
                   <tr key={`${a.id}-${i}`} className="border-b border-panel-border/60">
-                    <td className="py-1.5 pr-3 font-mono text-[11px] text-muted-foreground">{a.id}</td>
+                    <td className="py-1.5 pr-3 font-mono text-[11px] text-muted-foreground">
+                      {a.id}
+                    </td>
                     <td className="py-1.5 pr-3 text-foreground">{a.label}</td>
                     <td className="py-1.5 pr-3 text-muted-foreground">{rule}</td>
                     <td className="py-1.5 pr-3 text-muted-foreground">ventana deslizante</td>
-                    <td className="py-1.5 pr-3 tabular-nums text-foreground">{formatInt(a.users)}</td>
+                    <td className="py-1.5 pr-3 tabular-nums text-foreground">
+                      {formatInt(a.users)}
+                    </td>
                   </tr>
                 )),
               )}

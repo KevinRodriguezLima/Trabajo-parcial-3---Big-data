@@ -25,12 +25,13 @@ export function AlertsPanel({
   /** Límite de tarjetas visibles antes de "ver más" (modo resumen del dashboard). */
   limit?: number;
 }) {
-  const { snapshot, loading, filters, setFilters, acknowledgeAlert, resolveAlert } = useRealtimeDashboard();
+  const { snapshot, loading, filters, setFilters, acknowledgeAlert, resolveAlert } =
+    useRealtimeDashboard();
   const [statusFilter, setStatusFilter] = useState<AlertStatus | "TODAS">("TODAS");
   const [query, setQuery] = useState("");
   const [visible, setVisible] = useState(limit ?? 8);
 
-  const allAlerts = snapshot?.alerts ?? [];
+  const allAlerts = useMemo(() => snapshot?.alerts ?? [], [snapshot?.alerts]);
 
   // Conteo por severidad para las tarjetas superiores (siempre sobre el total, no el filtrado).
   const countsByLevel = useMemo(() => {
@@ -99,7 +100,10 @@ export function AlertsPanel({
               </Button>
             ))}
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <Search
+                className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -117,31 +121,33 @@ export function AlertsPanel({
       ) : (
         <div className="space-y-4">
           {/* (a) Tarjetas por severidad con filtro cruzado */}
-          <div className="grid grid-cols-3 gap-2">
-            {LEVELS.map((level) => {
-              const active = filters.alertLevel === level;
-              const style = ALERT_STYLE[level];
-              return (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => toggleLevel(level)}
-                  aria-pressed={active}
-                  aria-label={`Filtrar alertas ${style.label}, ${countsByLevel[level]} activas`}
-                  className={cn(
-                    "rounded-md border border-l-2 bg-muted/25 px-3 py-2 text-left transition-colors hover:bg-muted/40",
-                    style.border,
-                    active && "ring-1 ring-primary border-primary/60",
-                  )}
-                >
-                  <p className="text-[11px] font-medium text-muted-foreground">{style.label}</p>
-                  <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
-                    {countsByLevel[level]}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
+          {allAlerts.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {LEVELS.map((level) => {
+                const active = filters.alertLevel === level;
+                const style = ALERT_STYLE[level];
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => toggleLevel(level)}
+                    aria-pressed={active}
+                    aria-label={`Filtrar alertas ${style.label}, ${countsByLevel[level]} activas`}
+                    className={cn(
+                      "rounded-md border border-l-2 bg-muted/25 px-3 py-2 text-left transition-colors hover:bg-muted/40",
+                      style.border,
+                      active && "ring-1 ring-primary border-primary/60",
+                    )}
+                  >
+                    <p className="text-[11px] font-medium text-muted-foreground">{style.label}</p>
+                    <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                      {countsByLevel[level]}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* (b) Mini línea de tiempo horizontal */}
           {timeline.points.length > 0 && !limit && (
@@ -177,7 +183,12 @@ export function AlertsPanel({
           )}
 
           {/* (c) Lista agrupada por componente */}
-          {filtered.length === 0 ? (
+          {allAlerts.length === 0 ? (
+            <EmptyState
+              title="Sin alertas registradas"
+              description="El escenario actual no emitió advertencias ni eventos críticos."
+            />
+          ) : filtered.length === 0 ? (
             <EmptyState
               title="Sin alertas para el filtro seleccionado"
               description="Ajusta la severidad, el estado o la búsqueda indicada."
@@ -203,7 +214,10 @@ export function AlertsPanel({
                           <div className="min-w-0">
                             <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
                               {a.title}
-                              <Badge variant="outline" className={cn("text-[10px]", ALERT_STYLE[a.level].badge)}>
+                              <Badge
+                                variant="outline"
+                                className={cn("text-[10px]", ALERT_STYLE[a.level].badge)}
+                              >
                                 {ALERT_STYLE[a.level].label}
                               </Badge>
                               <Badge variant="secondary" className="text-[10px]">

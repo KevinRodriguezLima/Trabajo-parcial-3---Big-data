@@ -48,12 +48,35 @@ interface TreemapNode {
   priority: AudienceMetric["priority"];
 }
 
+interface TreemapCellProps extends Partial<TreemapNode> {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  selected?: string | null;
+  onSelect?: (id: string) => void;
+}
+
 /** Nodo custom del treemap: color por prioridad y etiqueta nombre + %. */
-function TreemapCell(props: any) {
+function TreemapCell(props: TreemapCellProps) {
   const { x, y, width, height, id, label, percentage, priority, selected, onSelect } = props;
-  if (width < 2 || height < 2) return null;
+  if (
+    x === undefined ||
+    y === undefined ||
+    width === undefined ||
+    height === undefined ||
+    !id ||
+    !label ||
+    percentage === undefined ||
+    !priority ||
+    !onSelect ||
+    width < 2 ||
+    height < 2
+  ) {
+    return null;
+  }
   const isSelected = selected === id;
-  const fill = PRIORITY_VAR[priority as AudienceMetric["priority"]];
+  const fill = PRIORITY_VAR[priority];
   const canShowText = width > 60 && height > 30;
   return (
     <g
@@ -98,7 +121,10 @@ export function AudiencePanel({ limit }: { limit?: number }) {
   const { snapshot, loading, filters, setFilters } = useRealtimeDashboard();
   const [selected, setSelected] = useState<AudienceMetric | null>(null);
 
-  const audiences = snapshot?.audiences.slice(0, limit ?? snapshot.audiences.length) ?? [];
+  const audiences = useMemo(
+    () => snapshot?.audiences.slice(0, limit ?? snapshot.audiences.length) ?? [],
+    [limit, snapshot?.audiences],
+  );
   const compact = typeof limit === "number";
 
   const treemapData: TreemapNode[] = useMemo(
@@ -137,14 +163,17 @@ export function AudiencePanel({ limit }: { limit?: number }) {
                   aspectRatio={4 / 3}
                   stroke="var(--color-panel-border)"
                   isAnimationActive={false}
-                  content={
-                    <TreemapCell selected={filters.audience} onSelect={toggleAudience} /> as any
-                  }
+                  content={<TreemapCell selected={filters.audience} onSelect={toggleAudience} />}
                 />
               </ResponsiveContainer>
             </div>
 
-            <ul className={cn("grid gap-3", compact ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3")}>
+            <ul
+              className={cn(
+                "grid gap-3",
+                compact ? "sm:grid-cols-2" : "sm:grid-cols-2 xl:grid-cols-3",
+              )}
+            >
               {audiences.map((a) => {
                 const isSelected = filters.audience === a.id;
                 return (
@@ -165,13 +194,18 @@ export function AudiencePanel({ limit }: { limit?: number }) {
                         aria-label={`Filtrar por audiencia ${a.label}`}
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-foreground">{a.label}</p>
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            {a.label}
+                          </p>
                           <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                             <Users className="h-3 w-3" aria-hidden />
                             {formatInt(a.users)} · {formatPercent(a.percentage)}
                           </p>
                         </div>
-                        <Badge variant="outline" className={cn("shrink-0 text-[10px]", PRIORITY_STYLE[a.priority])}>
+                        <Badge
+                          variant="outline"
+                          className={cn("shrink-0 text-[10px]", PRIORITY_STYLE[a.priority])}
+                        >
                           {a.priority}
                         </Badge>
                       </button>
@@ -188,7 +222,11 @@ export function AudiencePanel({ limit }: { limit?: number }) {
 
                       <div className="flex flex-wrap gap-1">
                         {a.rules.slice(0, 2).map((r) => (
-                          <Badge key={r} variant="secondary" className="max-w-full truncate text-[10px]">
+                          <Badge
+                            key={r}
+                            variant="secondary"
+                            className="max-w-full truncate text-[10px]"
+                          >
                             {r}
                           </Badge>
                         ))}
@@ -236,6 +274,15 @@ export function AudiencePanel({ limit }: { limit?: number }) {
                   <Metric label="Porcentaje" value={formatPercent(selected.percentage)} />
                   <Metric label="Variación" value={`${selected.change.toFixed(1)} %`} />
                   <Metric label="Prioridad" value={selected.priority} />
+                  {selected.avg_confidence !== undefined && (
+                    <Metric
+                      label="Confianza promedio"
+                      value={formatPercent(selected.avg_confidence * 100)}
+                    />
+                  )}
+                  {selected.recent_detections !== undefined && (
+                    <Metric label="Detecciones" value={formatInt(selected.recent_detections)} />
+                  )}
                 </div>
 
                 <Section title="Reglas de detección">
@@ -257,27 +304,74 @@ export function AudiencePanel({ limit }: { limit?: number }) {
                 </Section>
 
                 <Section title="Productos más relacionados">
-                  <ul className="space-y-1 text-xs text-muted-foreground">
-                    {selected.top_products.map((p) => (
-                      <li key={p}>{p}</li>
-                    ))}
-                  </ul>
+                  {selected.top_products.length > 0 ? (
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {selected.top_products.map((p) => (
+                        <li key={p}>{p}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Sin productos asociados en el snapshot actual.
+                    </p>
+                  )}
                 </Section>
 
                 <Section title="Regiones principales">
-                  <div className="flex flex-wrap gap-1.5">
-                    {selected.top_regions.map((r) => (
-                      <Badge key={r} variant="outline" className="text-[10px]">
-                        {r}
-                      </Badge>
-                    ))}
-                  </div>
+                  {selected.top_regions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.top_regions.map((r) => (
+                        <Badge key={r} variant="outline" className="text-[10px]">
+                          {r}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Sin regiones asociadas en el snapshot actual.
+                    </p>
+                  )}
                 </Section>
+
+                {selected.sample_users && selected.sample_users.length > 0 && (
+                  <Section title="Usuarios de ejemplo">
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.sample_users.map((user) => (
+                        <Badge key={user} variant="outline" className="font-mono text-[10px]">
+                          {user}
+                        </Badge>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
+                {selected.evidence && Object.keys(selected.evidence).length > 0 && (
+                  <Section title="Evidencia de detección">
+                    <dl className="grid grid-cols-2 gap-2 text-xs">
+                      {Object.entries(selected.evidence).map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="rounded-md border border-panel-border bg-muted/20 px-2 py-1.5"
+                        >
+                          <dt className="truncate text-[10px] uppercase text-muted-foreground">
+                            {key}
+                          </dt>
+                          <dd className="mt-0.5 font-medium text-foreground">
+                            {formatEvidenceValue(value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </Section>
+                )}
 
                 <Section title="Evolución temporal">
                   <div className="h-[160px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={selected.history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <AreaChart
+                        data={selected.history}
+                        margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+                      >
                         <XAxis
                           dataKey="t"
                           tickFormatter={(t) => formatTime(t).slice(0, 5)}
@@ -338,8 +432,18 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
       {children}
     </div>
   );
+}
+
+function formatEvidenceValue(value: unknown): string {
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "number") return formatInt(value);
+  if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
 }

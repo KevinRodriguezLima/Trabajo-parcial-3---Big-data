@@ -368,7 +368,14 @@ def build_regions(data: Dict[str, Any], active_users: int, conversion: float) ->
 def build_audiences(conn, active_users: int) -> List[Dict[str, Any]]:
     rows = conn.execute(
         """
-        SELECT audience_type, count(DISTINCT user_id) AS users, max(detected_at) AS last_seen
+        SELECT
+            audience_type,
+            count(DISTINCT user_id) AS users,
+            count(*) AS recent_detections,
+            avg(confidence) AS avg_confidence,
+            max(detected_at) AS last_seen,
+            (array_agg(evidence ORDER BY detected_at DESC))[1] AS evidence,
+            (array_agg(user_id ORDER BY detected_at DESC))[1:8] AS sample_users
         FROM audience_classifications
         WHERE action = 'ADDED'
         GROUP BY audience_type
@@ -378,10 +385,12 @@ def build_audiences(conn, active_users: int) -> List[Dict[str, Any]]:
     by_type = {row["audience_type"]: row for row in rows}
     audiences = []
     now = now_iso()
+    total_segmented = max(1, sum(int(row.get("users") or 0) for row in rows))
     for audience_type in AUDIENCE_ORDER:
         row = by_type.get(audience_type) or {}
         users = int(row.get("users") or 0)
         last_seen = row.get("last_seen")
+        sample_users = row.get("sample_users") or []
         meta = AUDIENCE_META[audience_type]
         audiences.append(
             {
@@ -389,7 +398,7 @@ def build_audiences(conn, active_users: int) -> List[Dict[str, Any]]:
                 "name": audience_type,
                 "label": AUDIENCE_LABELS[audience_type],
                 "users": users,
-                "percentage": round((users / max(1, active_users)) * 100, 2),
+                "percentage": round((users / total_segmented) * 100, 2),
                 "change": 0,
                 "priority": meta["priority"],
                 "description": "Audiencia detectada por reglas de comportamiento en Flink.",
@@ -398,6 +407,11 @@ def build_audiences(conn, active_users: int) -> List[Dict[str, Any]]:
                 "top_products": [],
                 "top_regions": [],
                 "history": [{"t": last_seen.isoformat() if last_seen else now, "value": users}],
+                "evidence": row.get("evidence") or {},
+                "sample_users": list(dict.fromkeys(sample_users)),
+                "avg_confidence": float(row.get("avg_confidence") or 0),
+                "recent_detections": int(row.get("recent_detections") or 0),
+                "last_seen": last_seen.isoformat() if last_seen else None,
             }
         )
     return sorted(audiences, key=lambda item: item["users"], reverse=True)
