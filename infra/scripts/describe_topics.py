@@ -14,7 +14,7 @@ ensure_root_on_path()
 from confluent_kafka import KafkaException  # noqa: E402
 from confluent_kafka.admin import AdminClient  # noqa: E402
 
-from producers.schema import TOPIC_BY_EVENT, TOPIC_SPECS, plan_topics  # noqa: E402
+from producers.schema import ALL_TOPIC_SPECS, TOPIC_BY_EVENT, plan_topics  # noqa: E402
 
 
 LOGGER = logging.getLogger("infra.describe_topics")
@@ -27,10 +27,10 @@ def collect(admin: AdminClient, timeout: float) -> dict[str, Any]:
         for name, topic in metadata.topics.items()
         if not name.startswith("_")
     }
-    plan = plan_topics(TOPIC_SPECS, existing)
+    plan = plan_topics(ALL_TOPIC_SPECS, existing)
 
     topics: list[dict[str, Any]] = []
-    for spec in TOPIC_SPECS:
+    for spec in ALL_TOPIC_SPECS:
         topic = metadata.topics.get(spec.name)
         partitions = [
             {

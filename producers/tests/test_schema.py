@@ -9,8 +9,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from producers.schema import (  # noqa: E402
+    ALL_TOPIC_SPECS,
     BUSINESS_TOPICS,
     DEAD_LETTER_TOPIC,
+    OUTPUT_TOPIC_SPECS,
     TOPIC_BY_EVENT,
     TOPIC_SPECS,
     EventType,
@@ -63,6 +65,13 @@ class ContractTests(unittest.TestCase):
         dead_letter = next(spec for spec in TOPIC_SPECS if spec.name == DEAD_LETTER_TOPIC)
         self.assertEqual(dead_letter.event_types, ())
         self.assertNotIn(DEAD_LETTER_TOPIC, BUSINESS_TOPICS)
+
+    def test_output_topics_are_part_of_infrastructure_plan(self) -> None:
+        output_names = {spec.name for spec in OUTPUT_TOPIC_SPECS}
+        self.assertIn("metrics.throughput", output_names)
+        self.assertIn("audiences.classifications", output_names)
+        self.assertIn("alerts.anomalies", output_names)
+        self.assertTrue(output_names.issubset({spec.name for spec in ALL_TOPIC_SPECS}))
 
     def test_routing_is_by_event_type_not_by_source(self) -> None:
         self.assertEqual(topic_for_event(EventType.LOGIN), "user-events")

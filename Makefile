@@ -145,7 +145,7 @@ reset-b: env-b
 
 # --- Parte C: Flink jobs --------------------------------------------------
 
-.PHONY: setup-c test-c test-integration-c submit-c count-c
+.PHONY: setup-c test-c test-integration-c stream-c submit-c count-c
 
 setup-c:
 	$(PIP) install -r flink-jobs/requirements.txt
@@ -156,9 +156,13 @@ test-c:
 test-integration-c:
 	cd flink-jobs && ../$(PYTHON) -m unittest tests/test_integration.py -v
 
+stream-c: env-b
+	cd flink-jobs && KAFKA_BOOTSTRAP_INTERNAL=localhost:29092 POSTGRES_HOST=localhost \
+		../$(PYTHON) -m src.main --bootstrap localhost:29092
+
 submit-c:
-	docker exec audiencias-flink-jobmanager \
-		flink run -py /opt/flink/jobs/src/main.py
+	docker exec audiencias-flink-jobmanager bash -lc \
+		"python -m pip install -r /opt/flink/jobs/requirements.txt && flink run -py /opt/flink/jobs/src/main.py"
 
 count-c: env-b
 	@$(COMPOSE_B) exec -T postgres psql -U $${POSTGRES_USER:-audiencias} \
@@ -166,5 +170,21 @@ count-c: env-b
 		"SELECT metric_type, count(*) FROM flink_metrics GROUP BY 1 ORDER BY 1;" -c \
 		"SELECT audience_type, count(*) FROM audience_classifications GROUP BY 1 ORDER BY 1;" -c \
 		"SELECT alert_type, severity, count(*) FROM alerts_anomalies GROUP BY 1, 2 ORDER BY 1;"
+
+# --- Parte D: dashboard conectado -----------------------------------------
+
+.PHONY: setup-d backend-d dashboard-d
+
+setup-d:
+	$(PIP) install -r dashboard/backend/requirements.txt
+	cd dashboard && bun install
+
+backend-d:
+	POSTGRES_DSN=postgresql://audiencias:audiencias@localhost:5432/audiencias \
+		$(PYTHON) -m uvicorn backend.realtime_backend:app --app-dir dashboard --host 0.0.0.0 --port 8000
+
+dashboard-d:
+	cd dashboard && VITE_DATA_MODE=sse VITE_SSE_URL=http://localhost:8000/events/dashboard \
+		VITE_API_URL=http://localhost:8000/api/dashboard/snapshot bun run dev -- --host 0.0.0.0
 
 

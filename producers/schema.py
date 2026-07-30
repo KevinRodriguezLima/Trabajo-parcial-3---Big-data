@@ -145,6 +145,21 @@ def load_topic_specs(path: Path = TOPICS_PATH) -> tuple[TopicSpec, ...]:
     return tuple(specs)
 
 
+def load_output_topic_specs(path: Path = TOPICS_PATH) -> tuple[TopicSpec, ...]:
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    output_topics = raw.get("output_topics") or {}
+    if not isinstance(output_topics, dict):
+        raise ValueError("topics.yaml declara output_topics con una forma invalida")
+
+    specs: list[TopicSpec] = []
+    for name, body in output_topics.items():
+        partitions = int(body["partitions"])
+        if partitions < 1:
+            raise ValueError(f"{name} declara {partitions} particiones")
+        specs.append(TopicSpec(name=name, partitions=partitions, event_types=()))
+    return tuple(specs)
+
+
 def build_topic_by_event(specs: Iterable[TopicSpec]) -> dict[EventType, str]:
     mapping: dict[EventType, str] = {}
     for spec in specs:
@@ -212,6 +227,8 @@ def load_required_fields(path: Path = EVENT_SCHEMA_PATH) -> tuple[str, ...]:
 
 
 TOPIC_SPECS: tuple[TopicSpec, ...] = load_topic_specs()
+OUTPUT_TOPIC_SPECS: tuple[TopicSpec, ...] = load_output_topic_specs()
+ALL_TOPIC_SPECS: tuple[TopicSpec, ...] = TOPIC_SPECS + OUTPUT_TOPIC_SPECS
 TOPIC_BY_EVENT: dict[EventType, str] = build_topic_by_event(TOPIC_SPECS)
 BUSINESS_TOPICS: tuple[str, ...] = tuple(
     spec.name for spec in TOPIC_SPECS if spec.name != DEAD_LETTER_TOPIC

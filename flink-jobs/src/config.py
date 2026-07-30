@@ -59,6 +59,20 @@ class FlinkConfig:
     kafka_bootstrap_internal: str = os.getenv("KAFKA_BOOTSTRAP_INTERNAL", "kafka:9092")
     kafka_bootstrap_external: str = os.getenv("KAFKA_BOOTSTRAP_EXTERNAL", "localhost:29092")
     group_id: str = os.getenv("FLINK_GROUP_ID", "flink-audience-processor")
+    kafka_input_topics: str = os.getenv(
+        "FLINK_INPUT_TOPICS",
+        "user-events,purchase-events,iot-events,system-events",
+    )
+    kafka_auto_offset_reset: str = os.getenv("FLINK_AUTO_OFFSET_RESET", "earliest")
+    kafka_batch_window_sec: int = int(os.getenv("FLINK_BATCH_WINDOW_SEC", "10"))
+    kafka_poll_timeout_sec: float = float(os.getenv("FLINK_POLL_TIMEOUT_SEC", "1.0"))
+    kafka_max_batch_size: int = int(os.getenv("FLINK_MAX_BATCH_SIZE", "5000"))
+    kafka_publish_outputs: bool = os.getenv("FLINK_PUBLISH_OUTPUTS", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "si",
+    )
     
     # Postgres configuration for Sink
     postgres_host: str = os.getenv("POSTGRES_HOST", "postgres")

@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+exec > >(tee -a /var/log/audiencias-bootstrap.log) 2>&1
+
+REPO_URL="__REPO_URL__"
+BRANCH="__BRANCH__"
+APP_USER="ec2-user"
+APP_HOME="/home/${APP_USER}"
+PROJECT_DIR="${APP_HOME}/Trabajo-parcial-3---Big-data"
+
+if id ubuntu >/dev/null 2>&1; then
+  APP_USER="ubuntu"
+  APP_HOME="/home/${APP_USER}"
+  PROJECT_DIR="${APP_HOME}/Trabajo-parcial-3---Big-data"
+fi
+
+install_packages() {
+  if command -v dnf >/dev/null 2>&1; then
+    dnf update -y
+    dnf install -y git make python3 python3-pip docker curl unzip tar gzip
+  elif command -v apt-get >/dev/null 2>&1; then
+    apt-get update -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y git make python3 python3-venv python3-pip docker.io docker-compose-plugin curl unzip tar gzip
+  else
+    echo "No se encontro dnf ni apt-get" >&2
+    exit 1
+  fi
+}
+
+install_packages
+
+systemctl enable --now docker
+usermod -aG docker "${APP_USER}" || true
+
+if ! docker compose version >/dev/null 2>&1; then
+  mkdir -p /usr/local/lib/docker/cli-plugins
+  curl -fsSL "https://github.com/docker/compose/releases/download/v2.33.1/docker-compose-linux-x86_64" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - || true
+  if command -v dnf >/dev/null 2>&1; then
+    dnf install -y nodejs || true
+  fi
+fi
+
+sudo -u "${APP_USER}" bash -lc 'if ! command -v bun >/dev/null 2>&1; then curl -fsSL https://bun.sh/install | bash; fi'
+
+if [ ! -d "${PROJECT_DIR}/.git" ]; then
+  sudo -u "${APP_USER}" git clone --branch "${BRANCH}" "${REPO_URL}" "${PROJECT_DIR}"
+else
+  sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && git fetch origin && git checkout '${BRANCH}' && git pull --ff-only"
+fi
+
+cd "${PROJECT_DIR}"
+python3 -m venv .venv
+chown -R "${APP_USER}:${APP_USER}" .venv
+
+sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make setup-a setup-b setup-c setup-d"
+
+sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make up-flink-b"
+
+for i in $(seq 1 60); do
+  if docker exec audiencias-kafka /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1; then
+    break
+  fi
+  sleep 5
+done
+
+sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make topics-b"
+sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make run-a"
+
+cat >/etc/systemd/system/audiencias-stream.service <<EOF
+[Unit]
+Description=Audiencias Kafka microbatch processor
+After=docker.service
+Requires=docker.service
+
+[Service]
+User=${APP_USER}
+WorkingDirectory=${PROJECT_DIR}/flink-jobs
+Environment=KAFKA_BOOTSTRAP_INTERNAL=localhost:29092
+Environment=POSTGRES_HOST=localhost
+Environment=FLINK_PUBLISH_OUTPUTS=true
+ExecStart=${PROJECT_DIR}/.venv/bin/python -m src.main --bootstrap localhost:29092
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/audiencias-backend.service <<EOF
+[Unit]
+Description=Audiencias dashboard realtime backend
+After=docker.service audiencias-stream.service
+Requires=docker.service
+
+[Service]
+User=${APP_USER}
+WorkingDirectory=${PROJECT_DIR}
+Environment=POSTGRES_DSN=postgresql://audiencias:audiencias@localhost:5432/audiencias
+ExecStart=${PROJECT_DIR}/.venv/bin/python -m uvicorn backend.realtime_backend:app --app-dir dashboard --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat >/etc/systemd/system/audiencias-dashboard.service <<'EOF'
+[Unit]
+Description=Audiencias dashboard frontend
+After=audiencias-backend.service
+
+[Service]
+User=__APP_USER__
+WorkingDirectory=__PROJECT_DIR__/dashboard
+ExecStart=/bin/bash -lc 'TOKEN=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true); PUBLIC_HOST=$(curl -fsS -H "X-aws-ec2-metadata-token: ${TOKEN}" http://169.254.169.254/latest/meta-data/public-hostname || hostname -f); export PATH="$HOME/.bun/bin:$PATH"; export VITE_DATA_MODE=sse; export VITE_SSE_URL="http://${PUBLIC_HOST}:8000/events/dashboard"; export VITE_API_URL="http://${PUBLIC_HOST}:8000/api/dashboard/snapshot"; export VITE_WEBSOCKET_URL="ws://${PUBLIC_HOST}:8000/ws/dashboard"; bun run dev -- --host 0.0.0.0 --port 3000'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sed -i "s#__APP_USER__#${APP_USER}#g; s#__PROJECT_DIR__#${PROJECT_DIR}#g" /etc/systemd/system/audiencias-dashboard.service
+
+systemctl daemon-reload
+systemctl enable --now audiencias-stream.service audiencias-backend.service audiencias-dashboard.service
+
+sleep 15
+sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make produce-b FILE=simulator/output/base/events.jsonl RATE=100 LIMIT=5000" || true
+
+echo "Bootstrap terminado."
+echo "Logs: /var/log/audiencias-bootstrap.log"
+echo "Servicios: audiencias-stream, audiencias-backend, audiencias-dashboard"

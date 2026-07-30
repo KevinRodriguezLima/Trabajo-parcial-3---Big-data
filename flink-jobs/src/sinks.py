@@ -2,6 +2,14 @@ from datetime import datetime, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
+
+try:
+    from confluent_kafka import Producer
+    HAS_KAFKA = True
+except ImportError:
+    Producer = None
+    HAS_KAFKA = False
+
 try:
     import psycopg2
     from psycopg2.extras import Json
@@ -15,6 +23,21 @@ except ImportError:
 from .config import CONFIG
 
 LOGGER = logging.getLogger("flink.sinks")
+
+METRIC_OUTPUT_TOPICS = {
+    "throughput": "metrics.throughput",
+    "active_users": "metrics.active-users",
+    "events_by_type": "metrics.events-by-type",
+    "top_products_viewed": "metrics.top-products-viewed",
+    "top_products_purchased": "metrics.top-products-purchased",
+    "purchases_by_region": "metrics.purchases-by-region",
+    "conversion": "metrics.conversion",
+    "trends": "metrics.trends",
+}
+
+
+def _json_bytes(value: Dict[str, Any]) -> bytes:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 class PostgresSink:
     """Sink para escribir métricas, audiencias y alertas en PostgreSQL."""
@@ -126,13 +149,52 @@ class PostgresSink:
             self._conn.close()
 
 
+class KafkaOutputSink:
+    """Publica resultados procesados en los topics de salida para consumidores en tiempo real."""
+
+    def __init__(self, bootstrap: Optional[str] = None, enabled: bool = True):
+        self.enabled = enabled and HAS_KAFKA and CONFIG.kafka_publish_outputs
+        self.bootstrap = bootstrap or CONFIG.kafka_bootstrap_internal
+        self._producer = None
+        if self.enabled and Producer is not None:
+            self._producer = Producer({
+                "bootstrap.servers": self.bootstrap,
+                "client.id": "flink-output-publisher",
+                "acks": "all",
+                "enable.idempotence": True,
+                "compression.type": "lz4",
+            })
+        elif enabled and not HAS_KAFKA:
+            LOGGER.warning("confluent_kafka no esta instalado; no se publicaran outputs a Kafka")
+
+    def publish(self, topic: str, key: str, payload: Dict[str, Any]) -> bool:
+        if not self._producer:
+            return False
+        try:
+            self._producer.produce(topic, key=key.encode("utf-8"), value=_json_bytes(payload))
+            self._producer.poll(0)
+            return True
+        except Exception as exc:  # noqa: BLE001 - el sink no debe tumbar el pipeline
+            LOGGER.error("Error publicando output en Kafka topic=%s: %s", topic, exc)
+            return False
+
+    def close(self):
+        if self._producer:
+            self._producer.flush(10)
+
+
 class OutputPublisher:
     """
     Publicador unificado que envía los outputs de Flink tanto a Kafka (para D en tiempo real)
     como a Postgres (para persistencia).
     """
-    def __init__(self, postgres_sink: Optional[PostgresSink] = None):
+    def __init__(
+        self,
+        postgres_sink: Optional[PostgresSink] = None,
+        kafka_sink: Optional[KafkaOutputSink] = None,
+    ):
         self.pg_sink = postgres_sink or PostgresSink()
+        self.kafka_sink = kafka_sink or KafkaOutputSink()
 
     def publish_metric(self, metric_type: str, window_start: str, window_end: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         output_msg = {
@@ -143,6 +205,9 @@ class OutputPublisher:
             "processing_timestamp": datetime.now(timezone.utc).isoformat()
         }
         self.pg_sink.write_metric(metric_type, window_start, window_end, payload)
+        topic = METRIC_OUTPUT_TOPICS.get(metric_type)
+        if topic:
+            self.kafka_sink.publish(topic, metric_type, output_msg)
         return output_msg
 
     def publish_audience(self, record: Dict[str, Any]) -> Dict[str, Any]:
@@ -155,6 +220,7 @@ class OutputPublisher:
             detected_at=record["detected_at"],
             expires_at=record.get("expires_at")
         )
+        self.kafka_sink.publish("audiences.classifications", record["user_id"], record)
         return record
 
     def publish_alert(self, alert: Dict[str, Any]) -> Dict[str, Any]:
@@ -169,4 +235,10 @@ class OutputPublisher:
             window_end=alert.get("window_end"),
             detected_at=alert["detected_at"]
         )
+        self.kafka_sink.publish("alerts.anomalies", alert["alert_id"], alert)
         return alert
+
+    def close(self):
+        self.kafka_sink.close()
+        if hasattr(self.pg_sink, "close"):
+            self.pg_sink.close()

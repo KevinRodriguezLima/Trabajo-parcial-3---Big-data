@@ -18,6 +18,23 @@ bun install
 bun run dev
 ```
 
+## Modo conectado
+
+El dashboard puede consumir el backend realtime en `http://localhost:8000`.
+
+```sh
+cp .env.example .env
+bun run dev
+```
+
+Desde la raiz del monorepo tambien puedes usar:
+
+```sh
+make setup-d
+make backend-d
+make dashboard-d
+```
+
 ## Built with
 
 - TanStack Start

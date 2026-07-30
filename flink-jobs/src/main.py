@@ -1,9 +1,20 @@
 from datetime import datetime, timezone, timedelta
-import json
+import argparse
 import logging
 import sys
-import time
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+try:
+    from confluent_kafka import Consumer, KafkaException
+    HAS_KAFKA = True
+except ImportError:
+    Consumer = None
+    KafkaException = Exception
+    HAS_KAFKA = False
 
 from src.config import CONFIG
 from src.validation import EventValidator
@@ -22,9 +33,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 LOGGER = logging.getLogger("flink.main")
 
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso(dt: datetime) -> str:
+    return dt.isoformat()
+
+
 class FlinkJobPipeline:
     """
-    Orquestador principal del pipeline de Flink para procesamiento en tiempo real.
+    Orquestador principal del pipeline de procesamiento en tiempo real.
+
+    El proyecto conserva este nombre porque el job se ejecuta desde el cluster
+    Flink local, pero la unidad testeable es una microventana de mensajes Kafka.
     """
     def __init__(self):
         self.validator = EventValidator()
@@ -37,7 +59,6 @@ class FlinkJobPipeline:
         valid_events: List[Dict[str, Any]] = []
         dead_letter_events: List[Dict[str, Any]] = []
 
-        # 1. Validación, limpieza y deduplicación
         for raw in raw_messages:
             is_valid, enriched, dl = self.validator.process(raw)
             if is_valid:
@@ -46,52 +67,44 @@ class FlinkJobPipeline:
                 if uid not in self.user_events_history:
                     self.user_events_history[uid] = []
                 self.user_events_history[uid].append(enriched)
+                self.user_events_history[uid] = self.user_events_history[uid][-500:]
             elif dl:
                 dead_letter_events.append(dl)
 
         LOGGER.info(
-            "Ventana %s -> %s: %d eventos válidos, %d a dead-letter",
+            "Ventana %s -> %s: %d eventos validos, %d a dead-letter",
             window_start, window_end, len(valid_events), len(dead_letter_events)
         )
 
         if not valid_events:
             return
 
-        # 2. Métricas
-        win_sec = CONFIG.windows.throughput_window_sec
+        win_sec = CONFIG.kafka_batch_window_sec
 
-        # 2.1 Throughput
         tp_res = calculate_throughput(valid_events, win_sec)
         self.publisher.publish_metric("throughput", window_start, window_end, tp_res)
 
-        # 2.2 Active Users
         au_res = calculate_active_users(valid_events)
         self.publisher.publish_metric("active_users", window_start, window_end, au_res)
 
-        # 2.3 Events By Type
         ebt_res = calculate_events_by_type(valid_events)
         self.publisher.publish_metric("events_by_type", window_start, window_end, ebt_res)
 
-        # 2.4 Top Products
         tpv_res = calculate_top_viewed_products(valid_events)
         self.publisher.publish_metric("top_products_viewed", window_start, window_end, tpv_res)
 
         tpp_res = calculate_top_purchased_products(valid_events)
         self.publisher.publish_metric("top_products_purchased", window_start, window_end, tpp_res)
 
-        # 2.5 Purchases By Region
         pbr_res = calculate_purchases_by_region(valid_events)
         self.publisher.publish_metric("purchases_by_region", window_start, window_end, pbr_res)
 
-        # 2.6 Conversion
         conv_res = calculate_conversion(valid_events)
         self.publisher.publish_metric("conversion", window_start, window_end, conv_res)
 
-        # 2.7 Trends
         tr_res = calculate_trends(valid_events)
         self.publisher.publish_metric("trends", window_start, window_end, tr_res)
 
-        # 3. Audiencias (por usuario activo)
         active_users_in_batch = {e["user_id"] for e in valid_events}
         for uid in active_users_in_batch:
             user_history = self.user_events_history.get(uid, [])
@@ -99,17 +112,116 @@ class FlinkJobPipeline:
             for aud in audience_results:
                 self.publisher.publish_audience(aud.to_dict())
 
-        # 4. Alertas y Anomalías
         alerts = self.anomaly_detector.detect(valid_events, window_start, window_end)
         for alert in alerts:
             self.publisher.publish_alert(alert)
 
+    def close(self):
+        self.publisher.close()
 
-def main():
-    LOGGER.info("Iniciando Flink Job Pipeline (PyFlink Stream Processing)")
+
+class KafkaMicroBatchRunner:
+    """Consume Kafka continuamente y entrega microventanas al pipeline."""
+
+    def __init__(
+        self,
+        pipeline: FlinkJobPipeline,
+        *,
+        bootstrap: str,
+        topics: List[str],
+        group_id: str,
+        window_seconds: int,
+        max_batch_size: int,
+        poll_timeout: float,
+    ):
+        if not HAS_KAFKA or Consumer is None:
+            raise RuntimeError("confluent_kafka no esta instalado. Ejecuta: pip install -r flink-jobs/requirements.txt")
+        self.pipeline = pipeline
+        self.topics = topics
+        self.window_seconds = window_seconds
+        self.max_batch_size = max_batch_size
+        self.poll_timeout = poll_timeout
+        self.consumer = Consumer({
+            "bootstrap.servers": bootstrap,
+            "group.id": group_id,
+            "auto.offset.reset": CONFIG.kafka_auto_offset_reset,
+            "enable.auto.commit": False,
+            "client.id": "flink-microbatch-consumer",
+        })
+
+    def run_forever(self):
+        self.consumer.subscribe(self.topics)
+        LOGGER.info("Consumiendo topics=%s bootstrap=%s", ",".join(self.topics), CONFIG.kafka_bootstrap_internal)
+        window_start = utc_now()
+        batch: List[str] = []
+        try:
+            while True:
+                msg = self.consumer.poll(self.poll_timeout)
+                if msg is not None:
+                    if msg.error():
+                        raise KafkaException(msg.error())
+                    batch.append(msg.value().decode("utf-8"))
+
+                elapsed = (utc_now() - window_start).total_seconds()
+                should_flush = elapsed >= self.window_seconds or len(batch) >= self.max_batch_size
+                if should_flush:
+                    window_end = utc_now()
+                    if batch:
+                        self.pipeline.process_batch(batch, iso(window_start), iso(window_end))
+                        self.consumer.commit(asynchronous=False)
+                    batch = []
+                    window_start = utc_now()
+        except KeyboardInterrupt:
+            LOGGER.info("Interrumpido por usuario; cerrando consumidor")
+        finally:
+            if batch:
+                window_end = utc_now()
+                self.pipeline.process_batch(batch, iso(window_start), iso(window_end))
+                self.consumer.commit(asynchronous=False)
+            self.consumer.close()
+            self.pipeline.close()
+
+
+def read_jsonl(path: str) -> List[str]:
+    with open(path, encoding="utf-8") as handle:
+        return [line.rstrip("\n") for line in handle if line.strip()]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Procesador C: Kafka -> metricas/audiencias/alertas -> Postgres/Kafka")
+    parser.add_argument("--bootstrap", default=CONFIG.kafka_bootstrap_internal)
+    parser.add_argument("--topics", default=CONFIG.kafka_input_topics)
+    parser.add_argument("--group-id", default=CONFIG.group_id)
+    parser.add_argument("--window-sec", type=int, default=CONFIG.kafka_batch_window_sec)
+    parser.add_argument("--max-batch-size", type=int, default=CONFIG.kafka_max_batch_size)
+    parser.add_argument("--poll-timeout", type=float, default=CONFIG.kafka_poll_timeout_sec)
+    parser.add_argument("--once-file", help="Procesa un JSONL enriquecido una sola vez, util para pruebas")
+    return parser
+
+
+def main(argv: Optional[List[str]] = None):
+    args = build_parser().parse_args(argv)
     pipeline = FlinkJobPipeline()
-    LOGGER.info("Pipeline inicializado y listo para procesar eventos.")
+
+    if args.once_file:
+        start = utc_now()
+        messages = read_jsonl(args.once_file)
+        pipeline.process_batch(messages, iso(start), iso(start + timedelta(seconds=args.window_sec)))
+        pipeline.close()
+        return
+
+    topics = [topic.strip() for topic in args.topics.split(",") if topic.strip()]
+    runner = KafkaMicroBatchRunner(
+        pipeline,
+        bootstrap=args.bootstrap,
+        topics=topics,
+        group_id=args.group_id,
+        window_seconds=args.window_sec,
+        max_batch_size=args.max_batch_size,
+        poll_timeout=args.poll_timeout,
+    )
+    runner.run_forever()
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

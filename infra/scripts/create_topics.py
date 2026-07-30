@@ -11,7 +11,7 @@ ensure_root_on_path()
 from confluent_kafka import KafkaException  # noqa: E402
 from confluent_kafka.admin import AdminClient, NewTopic  # noqa: E402
 
-from producers.schema import TOPIC_SPECS, TopicPlan, plan_topics  # noqa: E402
+from producers.schema import ALL_TOPIC_SPECS, TopicPlan, plan_topics  # noqa: E402
 
 
 LOGGER = logging.getLogger("infra.create_topics")
@@ -67,7 +67,7 @@ def main() -> None:
     except KafkaException as exc:
         raise SystemExit(f"No se pudo consultar el broker en {args.bootstrap_servers}: {exc}")
 
-    plan = plan_topics(TOPIC_SPECS, existing)
+    plan = plan_topics(ALL_TOPIC_SPECS, existing)
 
     for spec in plan.unchanged:
         LOGGER.info("sin cambios %s (%d particiones)", spec.name, spec.partitions)
