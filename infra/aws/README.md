@@ -8,7 +8,8 @@ EC2 -> Docker Compose -> Kafka + PostgreSQL + Flink UI
 ```
 
 El script usa `boto3`, `user-data` y el instance profile del laboratorio
-`LabInstanceProfile`.
+`LabInstanceProfile`. Al crear la instancia tambien verifica que el Security
+Group tenga abiertos los puertos `3000`, `8000` y `8081`.
 
 ## Requisitos
 
@@ -83,6 +84,9 @@ http://DNS_PUBLICO:8000/health
 http://DNS_PUBLICO:8000/api/dashboard/snapshot
 http://DNS_PUBLICO:8081
 ```
+
+El dashboard queda configurado automaticamente con el DNS/IP publico de EC2 para
+conectarse al backend realtime por SSE.
 
 ## Borrar
 

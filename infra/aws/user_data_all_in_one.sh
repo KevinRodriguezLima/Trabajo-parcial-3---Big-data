@@ -123,6 +123,40 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+cat >/usr/local/bin/audiencias-dashboard-start.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOKEN="$(curl -fsS -m 2 -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null || true)"
+
+PUBLIC_HOST=""
+if [ -n "${TOKEN}" ]; then
+  PUBLIC_HOST="$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: ${TOKEN}" \
+    http://169.254.169.254/latest/meta-data/public-hostname 2>/dev/null || true)"
+  if [ -z "${PUBLIC_HOST}" ]; then
+    PUBLIC_HOST="$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: ${TOKEN}" \
+      http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)"
+  fi
+else
+  PUBLIC_HOST="$(curl -fsS -m 2 \
+    http://169.254.169.254/latest/meta-data/public-hostname 2>/dev/null || true)"
+fi
+
+if [ -z "${PUBLIC_HOST}" ]; then
+  PUBLIC_HOST="$(hostname -f)"
+fi
+
+echo "Dashboard usando PUBLIC_HOST=${PUBLIC_HOST}"
+export PATH="${HOME}/.bun/bin:${PATH}"
+export VITE_DATA_MODE=sse
+export VITE_SSE_URL="http://${PUBLIC_HOST}:8000/events/dashboard"
+export VITE_API_URL="http://${PUBLIC_HOST}:8000/api/dashboard/snapshot"
+export VITE_WEBSOCKET_URL="ws://${PUBLIC_HOST}:8000/ws/dashboard"
+exec bun run dev -- --host 0.0.0.0 --port 3000
+EOF
+chmod +x /usr/local/bin/audiencias-dashboard-start.sh
+
 cat >/etc/systemd/system/audiencias-dashboard.service <<'EOF'
 [Unit]
 Description=Audiencias dashboard frontend
@@ -131,7 +165,7 @@ After=audiencias-backend.service
 [Service]
 User=__APP_USER__
 WorkingDirectory=__PROJECT_DIR__/dashboard
-ExecStart=/bin/bash -lc 'TOKEN=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" || true); PUBLIC_HOST=$(curl -fsS -H "X-aws-ec2-metadata-token: ${TOKEN}" http://169.254.169.254/latest/meta-data/public-hostname || hostname -f); export PATH="$HOME/.bun/bin:$PATH"; export VITE_DATA_MODE=sse; export VITE_SSE_URL="http://${PUBLIC_HOST}:8000/events/dashboard"; export VITE_API_URL="http://${PUBLIC_HOST}:8000/api/dashboard/snapshot"; export VITE_WEBSOCKET_URL="ws://${PUBLIC_HOST}:8000/ws/dashboard"; bun run dev -- --host 0.0.0.0 --port 3000'
+ExecStart=/usr/local/bin/audiencias-dashboard-start.sh
 Restart=always
 RestartSec=5
 

@@ -109,6 +109,24 @@ def ensure_security_group(ec2_client, *, vpc_id: str, ssh_cidr: str) -> str:
     return sg_id
 
 
+def ensure_project_ingress(ec2_client, sg_id: str) -> None:
+    permissions = [
+        {"IpProtocol": "tcp", "FromPort": 3000, "ToPort": 3000, "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Dashboard"}]},
+        {"IpProtocol": "tcp", "FromPort": 8000, "ToPort": 8000, "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Backend realtime"}]},
+        {"IpProtocol": "tcp", "FromPort": 8081, "ToPort": 8081, "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Flink UI"}]},
+    ]
+    for permission in permissions:
+        port = permission["FromPort"]
+        try:
+            ec2_client.authorize_security_group_ingress(GroupId=sg_id, IpPermissions=[permission])
+            print(f"Puerto publico abierto: {port}")
+        except ClientError as exc:
+            if "InvalidPermission.Duplicate" in str(exc):
+                print(f"Puerto publico ya abierto: {port}")
+                continue
+            raise
+
+
 def latest_amazon_linux_2023(ec2_client) -> str:
     images = ec2_client.describe_images(
         Owners=["amazon"],
@@ -157,6 +175,7 @@ def crear(args: argparse.Namespace) -> None:
         if not vpc_id:
             vpc_id = default_vpc_id(ec2_client)
         sg_id = ensure_security_group(ec2_client, vpc_id=vpc_id, ssh_cidr=args.ssh_cidr)
+    ensure_project_ingress(ec2_client, sg_id)
     name = f"Audiencias-Proyecto03-{run_id}"
     print(f"Creando EC2 {name} en {args.region}")
     print(f"AMI={ami_id} tipo={args.instance_type} SG={sg_id} subnet={args.subnet_id or '(default)'}")
