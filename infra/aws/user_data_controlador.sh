@@ -50,7 +50,7 @@ python3 infra/aws/levantar_audiencias_ec2.py --start \\
   --key-name cluster \\
   --subnet-id subnet-0346fd19f61aafdcd \\
   --security-group-id sg-00c82fc157b6a0478 \\
-  --instance-type t3.small \\
+  --instance-type t3.large \\
   --instance-profile LabInstanceProfile
 EOF
 

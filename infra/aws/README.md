@@ -38,7 +38,7 @@ AMI_ID = "ami-03f4fd1e8233bd64d"
 KEY_NAME = "cluster"
 SECURITY_GROUP_ID = "sg-00c82fc157b6a0478"
 SUBNET_ID = "subnet-0346fd19f61aafdcd"
-TIPO_INSTANCIA = "t3.small"
+TIPO_INSTANCIA = "t3.large"
 INSTANCE_PROFILE = "LabInstanceProfile"
 ```
 
