@@ -32,6 +32,17 @@ node_modules/
 .next/
 coverage/
 
-# Evidencias pesadas; documentar su ubicación en docs/reports
+# Dashboard frontend
+dashboard/node_modules/
+dashboard/.output/
+dashboard/.tanstack/
+dashboard/.nitro/
+dashboard/dist/
+dashboard/dist-ssr/
+dashboard/.wrangler/
+dashboard/.dev.vars
+dashboard/*.local
+
+# Evidencias pesadas; documentar su ubicacion en docs/reports
 artifacts/
 CLAUDE.md
