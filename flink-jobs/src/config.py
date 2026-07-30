@@ -53,6 +53,9 @@ class AnomalyConfig:
     payment_fail_threshold_pct: float = float(os.getenv("ALERT_PAYMENT_FAIL_PCT", "20.0"))
     high_cart_threshold: float = float(os.getenv("ALERT_HIGH_CART_PEN", "5000.0"))
     high_latency_threshold_ms: float = float(os.getenv("ALERT_HIGH_LATENCY_MS", "30000.0"))
+    critical_payment_amount_pen: float = float(os.getenv("ALERT_CRITICAL_PAYMENT_AMOUNT_PEN", "1800.0"))
+    search_no_purchase_min: int = int(os.getenv("ALERT_SEARCH_NO_PURCHASE_MIN", "35"))
+    cart_activity_min: int = int(os.getenv("ALERT_CART_ACTIVITY_MIN", "22"))
 
 @dataclass
 class FlinkConfig:

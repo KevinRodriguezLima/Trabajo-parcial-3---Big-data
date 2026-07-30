@@ -75,7 +75,28 @@ class AnomalyDetector:
                     "detected_at": now_str
                 })
 
-        # 3. Chequeo de Carritos de Alto Valor (Spam o Compras Masivas)
+        # 3. Pagos fallidos de alto monto
+        high_failed_payments = [
+            float(e.get("payload", {}).get("total_amount", 0.0))
+            for e in events
+            if e.get("event_type") == "PAYMENT_FAILED"
+            and float(e.get("payload", {}).get("total_amount", 0.0)) >= self.config.critical_payment_amount_pen
+        ]
+        if high_failed_payments:
+            max_failed_amount = max(high_failed_payments)
+            alerts.append({
+                "alert_id": f"ALT_PAYMENT_AMOUNT_{uuid.uuid4().hex[:8]}",
+                "alert_type": "HIGH_VALUE_PAYMENT_FAILURE",
+                "severity": "CRITICAL",
+                "message": f"Pago fallido de alto monto detectado: S/ {round(max_failed_amount, 2)}",
+                "current_value": round(max_failed_amount, 2),
+                "threshold_value": self.config.critical_payment_amount_pen,
+                "window_start": window_start,
+                "window_end": window_end,
+                "detected_at": now_str
+            })
+
+        # 4. Chequeo de Carritos de Alto Valor (Spam o Compras Masivas)
         for e in events:
             if e.get("event_type") in ("ADD_TO_CART", "PURCHASE"):
                 cart_val = float(e.get("payload", {}).get("cart_value_after", e.get("payload", {}).get("total_amount", 0.0)))
@@ -93,7 +114,37 @@ class AnomalyDetector:
                     })
                     break  # Emitir max 1 por ventana
 
-        # 4. Latencia de Procesamiento Alta
+        # 5. Muchas busquedas sin compra: posible friccion o comparacion excesiva
+        search_count = sum(1 for e in events if e.get("event_type") == "SEARCH")
+        if search_count >= self.config.search_no_purchase_min and purchases == 0:
+            alerts.append({
+                "alert_id": f"ALT_SEARCH_{uuid.uuid4().hex[:8]}",
+                "alert_type": "SEARCH_PRESSURE_NO_PURCHASE",
+                "severity": "WARNING",
+                "message": f"Alta actividad de busqueda sin compras en la ventana: {search_count} busquedas",
+                "current_value": float(search_count),
+                "threshold_value": float(self.config.search_no_purchase_min),
+                "window_start": window_start,
+                "window_end": window_end,
+                "detected_at": now_str
+            })
+
+        # 6. Muchas ediciones de carrito: posible indecision o friccion en checkout
+        cart_mutations = sum(1 for e in events if e.get("event_type") in ("ADD_TO_CART", "REMOVE_FROM_CART"))
+        if cart_mutations >= self.config.cart_activity_min:
+            alerts.append({
+                "alert_id": f"ALT_CART_ACTIVITY_{uuid.uuid4().hex[:8]}",
+                "alert_type": "HIGH_CART_ACTIVITY",
+                "severity": "WARNING",
+                "message": f"Actividad elevada de carrito: {cart_mutations} altas/remociones en la ventana",
+                "current_value": float(cart_mutations),
+                "threshold_value": float(self.config.cart_activity_min),
+                "window_start": window_start,
+                "window_end": window_end,
+                "detected_at": now_str
+            })
+
+        # 7. Latencia de Procesamiento Alta
         latencies = [e.get("latency_ms", 0) for e in events if "latency_ms" in e]
         if latencies:
             avg_latency = sum(latencies) / float(len(latencies))
