@@ -516,7 +516,7 @@ export function buildScenarioResults(scenarios: Scenario[]): ScenarioResult[] {
       failed_payments: Math.round(purchases * cfg.failedPaymentRate),
       avg_latency_ms: cfg.latency,
       alerts,
-      critical_alerts: 0,
+      critical_alerts: Math.round(alerts * (0.18 + cfg.alertRate * 0.5)),
     };
   });
 }

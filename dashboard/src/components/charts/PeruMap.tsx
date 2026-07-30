@@ -30,6 +30,23 @@ const GROUP_LABEL: Record<string, string> = {
   oriente: "Oriente",
 };
 
+const REGION_ALIASES: Record<string, string> = {
+  LIMA: "Lima",
+  AREQUIPA: "Arequipa",
+  LA_LIBERTAD: "La Libertad",
+  CUSCO: "Cusco",
+  PIURA: "Piura",
+  JUNIN: "Junín",
+  PUNO: "Puno",
+  ICA: "Ica",
+  TACNA: "Tacna",
+  MOQUEGUA: "Moquegua",
+};
+
+function regionLabel(region: string): string {
+  return REGION_ALIASES[region.toUpperCase()] ?? region;
+}
+
 function valueFor(r: RegionMetric, metric: MapMetric): number {
   return r[metric];
 }
@@ -53,18 +70,19 @@ export function PeruMap({
 }) {
   const [hover, setHover] = useState<string | null>(null);
 
-  const withGeo = regions.filter((r) => REGION_SHAPES[r.region]);
-  const withoutGeo = regions.filter((r) => !REGION_SHAPES[r.region]);
+  const normalizedRegions = regions.map((region) => ({ ...region, region: regionLabel(region.region) }));
+  const withGeo = normalizedRegions.filter((r) => REGION_SHAPES[r.region]);
+  const withoutGeo = normalizedRegions.filter((r) => !REGION_SHAPES[r.region]);
 
-  const max = Math.max(1, ...regions.map((r) => valueFor(r, metric)));
-  const min = Math.min(0, ...regions.map((r) => valueFor(r, metric)));
+  const max = Math.max(1, ...normalizedRegions.map((r) => valueFor(r, metric)));
+  const min = Math.min(0, ...normalizedRegions.map((r) => valueFor(r, metric)));
 
   const intensity = (r: RegionMetric) => {
     const v = valueFor(r, metric);
     return max === min ? 0.5 : (v - min) / (max - min);
   };
 
-  const hoverRegion = useMemo(() => regions.find((r) => r.region === hover) ?? null, [regions, hover]);
+  const hoverRegion = useMemo(() => normalizedRegions.find((r) => r.region === hover) ?? null, [normalizedRegions, hover]);
 
   return (
     <div className="flex flex-col gap-3">

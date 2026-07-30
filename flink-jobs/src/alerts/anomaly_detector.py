@@ -44,7 +44,7 @@ class AnomalyDetector:
             alerts.append({
                 "alert_id": f"ALT_DROP_{uuid.uuid4().hex[:8]}",
                 "alert_type": "TRAFFIC_DROP",
-                "severity": "WARNING",
+                "severity": "CRITICAL",
                 "message": f"Caída drástica de tráfico: {round(current_eps, 1)} ev/s (Media esperada: {round(self.moving_average_eps, 1)} ev/s)",
                 "current_value": round(current_eps, 2),
                 "threshold_value": round(self.config.drop_multiplier * self.moving_average_eps, 2),
@@ -66,7 +66,7 @@ class AnomalyDetector:
                 alerts.append({
                     "alert_id": f"ALT_PAYMENT_{uuid.uuid4().hex[:8]}",
                     "alert_type": "HIGH_PAYMENT_FAILURE_RATE",
-                    "severity": "WARNING",
+                    "severity": "CRITICAL",
                     "message": f"Tasa de fallos en pasarela de pago inusualmente alta: {round(fail_pct, 1)}%",
                     "current_value": round(fail_pct, 2),
                     "threshold_value": self.config.payment_fail_threshold_pct,
@@ -83,7 +83,7 @@ class AnomalyDetector:
                     alerts.append({
                         "alert_id": f"ALT_CART_{uuid.uuid4().hex[:8]}",
                         "alert_type": "HIGH_VALUE_CART",
-                        "severity": "WARNING",
+                        "severity": "CRITICAL",
                         "message": f"Carrito/compra por monto inusual detectado: S/ {round(cart_val, 2)} (Usuario: {e.get('user_id')})",
                         "current_value": round(cart_val, 2),
                         "threshold_value": self.config.high_cart_threshold,

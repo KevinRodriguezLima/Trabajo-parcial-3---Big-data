@@ -325,7 +325,7 @@ export const ALERT_TEMPLATES: Array<{
     component: "Apache Flink",
   },
   {
-    level: "WARNING",
+    level: "CRITICAL",
     title: "Alta tasa de pagos rechazados",
     description: "Los eventos PAYMENT_FAILED representan más del 6 % de los intentos de compra.",
     component: "Pasarela de pagos",
@@ -337,7 +337,7 @@ export const ALERT_TEMPLATES: Array<{
     component: "Job de audiencias",
   },
   {
-    level: "WARNING",
+    level: "CRITICAL",
     title: "Caída repentina de conversión",
     description: "La conversión cayó más de 3 puntos porcentuales respecto a la ventana anterior.",
     component: "Job de conversión",
@@ -349,13 +349,13 @@ export const ALERT_TEMPLATES: Array<{
     component: "Apache Flink",
   },
   {
-    level: "WARNING",
+    level: "CRITICAL",
     title: "Pérdida de conexión con Kafka",
     description: "El consumidor perdió el heartbeat con el broker principal del clúster.",
     component: "Apache Kafka",
   },
   {
-    level: "WARNING",
+    level: "CRITICAL",
     title: "Pérdida de conexión con Flink",
     description: "El JobManager dejó de reportar checkpoints durante 30 segundos.",
     component: "Apache Flink",

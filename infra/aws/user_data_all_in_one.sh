@@ -119,6 +119,7 @@ Requires=docker.service
 User=${APP_USER}
 WorkingDirectory=${PROJECT_DIR}
 Environment=POSTGRES_DSN=postgresql://audiencias:audiencias@localhost:5432/audiencias
+Environment=DASHBOARD_POLL_SECONDS=0.75
 ExecStart=${PROJECT_DIR}/.venv/bin/python -m uvicorn backend.realtime_backend:app --app-dir dashboard --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5

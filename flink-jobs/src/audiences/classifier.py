@@ -4,6 +4,19 @@ from typing import Any, Dict, List, Optional
 from ..schemas import parse_iso_timestamp
 from ..config import CONFIG, AudienceConfig
 
+
+def reference_time(events: List[Dict[str, Any]]) -> datetime:
+    """Usa el reloj del flujo simulado; si no hay timestamps, cae al reloj real."""
+    timestamps = [
+        dt
+        for event in events
+        if (dt := parse_iso_timestamp(event.get("event_timestamp", ""))) is not None
+    ]
+    if timestamps:
+        return max(timestamps)
+    return datetime.now(timezone.utc)
+
+
 class AudienceResult:
     def __init__(
         self,
@@ -54,7 +67,7 @@ class CompradorCompulsivoRule(AudienceRule):
         return "COMPRADOR_COMPULSIVO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         cutoff = now - timedelta(seconds=config.compulsivo_window_sec)
         
         purchases = []
@@ -85,7 +98,7 @@ class ComparadorActivoRule(AudienceRule):
         return "COMPARADOR_ACTIVO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         cutoff = now - timedelta(seconds=config.comparador_window_sec)
 
         has_cart = any(e.get("event_type") == "ADD_TO_CART" for e in events if parse_iso_timestamp(e.get("event_timestamp", "")) and parse_iso_timestamp(e.get("event_timestamp", "")) >= cutoff)
@@ -122,7 +135,7 @@ class CarritoAbandonadoRule(AudienceRule):
         return "CARRITO_ABANDONADO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         timeout = timedelta(seconds=config.abandoned_cart_timeout_sec)
 
         carts = {}  # cart_id -> last_add_time
@@ -163,7 +176,7 @@ class CompradorNocturnoRule(AudienceRule):
         return "COMPRADOR_NOCTURNO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
 
         night_events = 0
         for e in events:
@@ -192,7 +205,7 @@ class UsuarioAltoValorRule(AudienceRule):
         return "USUARIO_ALTO_VALOR"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         cutoff = now - timedelta(seconds=config.high_value_window_sec)
 
         total_spent = 0.0
@@ -222,7 +235,7 @@ class NavegadorIndecisoRule(AudienceRule):
         return "NAVEGADOR_INDECISO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         cutoff = now - timedelta(seconds=config.indeciso_window_sec)
 
         cycles = 0
@@ -260,7 +273,7 @@ class UsuarioMultiDispositivoRule(AudienceRule):
         return "USUARIO_MULTI_DISPOSITIVO"
 
     def evaluate(self, user_id: str, events: List[Dict[str, Any]], config: AudienceConfig) -> Optional[AudienceResult]:
-        now = datetime.now(timezone.utc)
+        now = reference_time(events)
         cutoff = now - timedelta(seconds=config.multi_device_window_sec)
 
         sources = set()

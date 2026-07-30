@@ -17,7 +17,7 @@ POSTGRES_DSN = os.getenv(
     "POSTGRES_DSN",
     "postgresql://audiencias:audiencias@localhost:5432/audiencias",
 )
-POLL_SECONDS = float(os.getenv("DASHBOARD_POLL_SECONDS", "1.5"))
+POLL_SECONDS = float(os.getenv("DASHBOARD_POLL_SECONDS", "0.75"))
 
 SCENARIOS = {
     "BASE",
@@ -53,6 +53,57 @@ AUDIENCE_LABELS = {
     "USUARIO_ALTO_VALOR": "Usuario alto valor",
     "NAVEGADOR_INDECISO": "Navegador indeciso",
     "USUARIO_MULTI_DISPOSITIVO": "Usuario multidispositivo",
+}
+AUDIENCE_META = {
+    "COMPRADOR_COMPULSIVO": {
+        "priority": "ALTA",
+        "rules": ["≥ 3 eventos PURCHASE en ventana de 10 minutos", "Eventos agrupados por user_id"],
+        "top_events": ["PURCHASE", "ADD_TO_CART", "VIEW_PRODUCT"],
+    },
+    "COMPARADOR_ACTIVO": {
+        "priority": "MEDIA",
+        "rules": ["≥ 5 eventos VIEW_PRODUCT en ventana de 5 minutos", "Sin ADD_TO_CART en la misma ventana"],
+        "top_events": ["VIEW_PRODUCT", "SEARCH", "PAGE_VIEW"],
+    },
+    "CARRITO_ABANDONADO": {
+        "priority": "ALTA",
+        "rules": ["ADD_TO_CART sin PURCHASE tras 15 minutos", "Sin REMOVE_FROM_CART explícito"],
+        "top_events": ["ADD_TO_CART", "PAGE_VIEW", "REMOVE_FROM_CART"],
+    },
+    "COMPRADOR_NOCTURNO": {
+        "priority": "MEDIA",
+        "rules": ["≥ 3 eventos entre 22:00 y 06:00", "Evaluado sobre event_timestamp"],
+        "top_events": ["VIEW_PRODUCT", "PURCHASE", "SOCIAL_POST"],
+    },
+    "USUARIO_ALTO_VALOR": {
+        "priority": "ALTA",
+        "rules": ["Compras acumuladas ≥ S/ 1,000", "Monto calculado desde eventos PURCHASE"],
+        "top_events": ["PURCHASE", "VIEW_PRODUCT", "ADD_TO_CART"],
+    },
+    "NAVEGADOR_INDECISO": {
+        "priority": "MEDIA",
+        "rules": ["≥ 3 ciclos ADD_TO_CART / REMOVE_FROM_CART", "Ventana de 30 minutos"],
+        "top_events": ["ADD_TO_CART", "REMOVE_FROM_CART", "VIEW_PRODUCT"],
+    },
+    "USUARIO_MULTI_DISPOSITIVO": {
+        "priority": "BAJA",
+        "rules": ["Eventos desde ≥ 2 fuentes distintas", "Fuentes WEB, MOBILE, IOT, VEHICLE o POS"],
+        "top_events": ["LOGIN", "PAGE_VIEW", "GPS_UPDATE"],
+    },
+}
+AUDIENCE_ORDER = tuple(AUDIENCE_META.keys())
+
+REGION_LABELS = {
+    "LIMA": "Lima",
+    "AREQUIPA": "Arequipa",
+    "LA_LIBERTAD": "La Libertad",
+    "CUSCO": "Cusco",
+    "PIURA": "Piura",
+    "JUNIN": "Junín",
+    "PUNO": "Puno",
+    "ICA": "Ica",
+    "TACNA": "Tacna",
+    "MOQUEGUA": "Moquegua",
 }
 
 app = FastAPI(title="AudienceStream Realtime Backend")
@@ -178,13 +229,7 @@ def fetch_alerts(conn, scenario: str) -> List[Dict[str, Any]]:
     return [
         {
             "id": row["alert_id"],
-            "level": (
-                "WARNING"
-                if row["severity"] == "CRITICAL"
-                else row["severity"]
-                if row["severity"] in ("INFO", "WARNING")
-                else "WARNING"
-            ),
+            "level": row["severity"] if row["severity"] in ("INFO", "WARNING", "CRITICAL") else "WARNING",
             "title": row["alert_type"].replace("_", " ").title(),
             "description": row["message"],
             "timestamp": row["detected_at"].isoformat(),
@@ -308,7 +353,7 @@ def build_regions(data: Dict[str, Any], active_users: int, conversion: float) ->
     total_revenue = sum(float(row.get("total_amount") or 0) for row in rows)
     return [
         {
-            "region": row.get("region", "DESCONOCIDA"),
+            "region": REGION_LABELS.get(str(row.get("region", "")).upper(), row.get("region", "Desconocida")),
             "purchases": int(row.get("purchases_count") or 0),
             "revenue": float(row.get("total_amount") or 0),
             "national_share": round((float(row.get("total_amount") or 0) / max(1, total_revenue)) * 100, 2),
@@ -330,24 +375,32 @@ def build_audiences(conn, active_users: int) -> List[Dict[str, Any]]:
         ORDER BY users DESC
         """
     ).fetchall()
-    return [
-        {
-            "id": row["audience_type"].lower().replace("_", "-"),
-            "name": row["audience_type"],
-            "label": AUDIENCE_LABELS.get(row["audience_type"], row["audience_type"].replace("_", " ").title()),
-            "users": int(row["users"] or 0),
-            "percentage": round((int(row["users"] or 0) / max(1, active_users)) * 100, 2),
-            "change": 0,
-            "priority": "ALTA" if int(row["users"] or 0) > 0 else "BAJA",
-            "description": "Audiencia detectada por reglas de comportamiento en Flink.",
-            "rules": ["Regla evaluada sobre historial reciente del usuario"],
-            "top_events": ["VIEW_PRODUCT", "ADD_TO_CART", "PURCHASE"],
-            "top_products": [],
-            "top_regions": [],
-            "history": [{"t": row["last_seen"].isoformat(), "value": int(row["users"] or 0)}],
-        }
-        for row in rows
-    ]
+    by_type = {row["audience_type"]: row for row in rows}
+    audiences = []
+    now = now_iso()
+    for audience_type in AUDIENCE_ORDER:
+        row = by_type.get(audience_type) or {}
+        users = int(row.get("users") or 0)
+        last_seen = row.get("last_seen")
+        meta = AUDIENCE_META[audience_type]
+        audiences.append(
+            {
+                "id": audience_type.lower().replace("_", "-"),
+                "name": audience_type,
+                "label": AUDIENCE_LABELS[audience_type],
+                "users": users,
+                "percentage": round((users / max(1, active_users)) * 100, 2),
+                "change": 0,
+                "priority": meta["priority"],
+                "description": "Audiencia detectada por reglas de comportamiento en Flink.",
+                "rules": meta["rules"],
+                "top_events": meta["top_events"],
+                "top_products": [],
+                "top_regions": [],
+                "history": [{"t": last_seen.isoformat() if last_seen else now, "value": users}],
+            }
+        )
+    return sorted(audiences, key=lambda item: item["users"], reverse=True)
 
 
 INFRA_COMPONENTS = [
