@@ -17,7 +17,7 @@ fi
 
 if command -v dnf >/dev/null 2>&1; then
   dnf update -y
-  dnf install -y git python3 python3-pip python3-devel gcc make unzip curl
+  dnf install -y --allowerasing git python3.11 python3.11-pip python3.11-devel gcc make unzip curl-minimal
 elif command -v apt-get >/dev/null 2>&1; then
   apt-get update -y
   DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip python3-venv python3-dev gcc make unzip curl
@@ -26,8 +26,13 @@ else
   exit 1
 fi
 
-python3 -m pip install --upgrade pip
-python3 -m pip install boto3 botocore
+if command -v python3.11 >/dev/null 2>&1; then
+  python3.11 -m pip install --upgrade pip
+  python3.11 -m pip install boto3 botocore
+else
+  python3 -m pip install --upgrade pip
+  python3 -m pip install boto3 botocore
+fi
 
 if [ ! -d "${PROJECT_DIR}/.git" ]; then
   sudo -u "${APP_USER}" git clone --branch "${BRANCH}" "${REPO_URL}" "${PROJECT_DIR}"

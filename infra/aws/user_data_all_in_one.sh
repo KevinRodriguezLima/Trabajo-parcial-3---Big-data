@@ -18,7 +18,7 @@ fi
 install_packages() {
   if command -v dnf >/dev/null 2>&1; then
     dnf update -y
-    dnf install -y git make python3 python3-pip docker curl unzip tar gzip
+    dnf install -y --allowerasing git make python3.11 python3.11-pip python3.11-devel docker curl-minimal unzip tar gzip gcc
   elif command -v apt-get >/dev/null 2>&1; then
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y git make python3 python3-venv python3-pip docker.io docker-compose-plugin curl unzip tar gzip
@@ -56,7 +56,11 @@ else
 fi
 
 cd "${PROJECT_DIR}"
-python3 -m venv .venv
+if command -v python3.11 >/dev/null 2>&1; then
+  python3.11 -m venv .venv
+else
+  python3 -m venv .venv
+fi
 chown -R "${APP_USER}:${APP_USER}" .venv
 
 sudo -u "${APP_USER}" bash -lc "cd '${PROJECT_DIR}' && make setup-a setup-b setup-c setup-d"
