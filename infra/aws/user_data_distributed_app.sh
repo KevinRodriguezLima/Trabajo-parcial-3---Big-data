@@ -110,6 +110,8 @@ Environment=POSTGRES_HOST=${DATA_PRIVATE_IP}
 Environment=POSTGRES_DSN=${POSTGRES_DSN}
 Environment=FLINK_PUBLISH_OUTPUTS=true
 Environment=ALERT_HIGH_CART_PEN=1200
+Environment=AUD_COMPARADOR_MIN_VIEWS=2
+Environment=AUD_INDECISO_MIN_CYCLES=1
 ExecStart=${PROJECT_DIR}/.venv/bin/python -m src.main --bootstrap ${KAFKA_BOOTSTRAP}
 Restart=always
 RestartSec=5

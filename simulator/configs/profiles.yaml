@@ -13,7 +13,7 @@ profiles:
       CART: {PURCHASE: 9.0, ADD_TO_CART: 0.8, REMOVE_FROM_CART: 0.1, SEARCH: 0.3, EXIT: 0.1}
 
   COMPARADOR:
-    population_weight: 0.18
+    population_weight: 0.24
     active_hours: [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
     delay_seconds: [0.08, 0.22]
     offline_delay_seconds: [0.25, 0.80]
@@ -21,9 +21,9 @@ profiles:
     preferred_sources: {WEB: 0.70, MOBILE: 0.28, POS: 0.02}
     payment_failure_probability: 0.04
     transitions:
-      HOME: {SEARCH: 9.0, PAGE_VIEW: 1.0, EXIT: 0.2}
-      PRODUCT: {ADD_TO_CART: 1.8, SEARCH: 8.0, PAGE_VIEW: 0.8, EXIT: 0.4}
-      CART: {PURCHASE: 1.7, ADD_TO_CART: 1.2, REMOVE_FROM_CART: 0.8, SEARCH: 7.0, EXIT: 0.8}
+      HOME: {SEARCH: 10.0, PAGE_VIEW: 1.5, EXIT: 0.1}
+      PRODUCT: {ADD_TO_CART: 0.7, SEARCH: 10.0, PAGE_VIEW: 1.4, EXIT: 0.2}
+      CART: {PURCHASE: 0.8, ADD_TO_CART: 0.8, REMOVE_FROM_CART: 1.2, SEARCH: 8.5, EXIT: 0.6}
 
   COMPRADOR_NOCTURNO:
     population_weight: 0.10
@@ -65,7 +65,7 @@ profiles:
       CART: {PURCHASE: 5.5, ADD_TO_CART: 1.8, REMOVE_FROM_CART: 0.3, SEARCH: 1.0, EXIT: 0.3}
 
   USUARIO_EXPLORADOR:
-    population_weight: 0.15
+    population_weight: 0.11
     active_hours: [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
     delay_seconds: [0.06, 0.17]
     offline_delay_seconds: [0.20, 0.70]
@@ -78,7 +78,7 @@ profiles:
       CART: {PURCHASE: 0.0, ADD_TO_CART: 0.0, REMOVE_FROM_CART: 0.0, SEARCH: 1.0, EXIT: 1.0}
 
   CLIENTE_INDECISO:
-    population_weight: 0.12
+    population_weight: 0.20
     active_hours: [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
     delay_seconds: [0.06, 0.19]
     offline_delay_seconds: [0.20, 0.70]
@@ -86,12 +86,12 @@ profiles:
     preferred_sources: {WEB: 0.48, MOBILE: 0.50, POS: 0.02}
     payment_failure_probability: 0.07
     transitions:
-      HOME: {SEARCH: 7.0, PAGE_VIEW: 1.5, EXIT: 0.2}
-      PRODUCT: {ADD_TO_CART: 6.0, SEARCH: 2.5, PAGE_VIEW: 0.4, EXIT: 0.3}
-      CART: {PURCHASE: 0.8, ADD_TO_CART: 3.5, REMOVE_FROM_CART: 5.5, SEARCH: 2.4, EXIT: 0.9}
+      HOME: {SEARCH: 7.0, PAGE_VIEW: 1.5, EXIT: 0.1}
+      PRODUCT: {ADD_TO_CART: 7.5, SEARCH: 2.3, PAGE_VIEW: 0.4, EXIT: 0.2}
+      CART: {PURCHASE: 0.5, ADD_TO_CART: 4.0, REMOVE_FROM_CART: 7.5, SEARCH: 2.2, EXIT: 0.5}
 
   CLIENTE_ESTACIONAL:
-    population_weight: 0.10
+    population_weight: 0.08
     active_hours: [7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
     delay_seconds: [0.07, 0.20]
     offline_delay_seconds: [0.25, 0.85]

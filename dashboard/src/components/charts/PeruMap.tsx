@@ -23,6 +23,9 @@ const REGION_SHAPES: Record<string, { x: number; y: number; w: number; h: number
   Moquegua: { x: 62, y: 206, w: 40, h: 26, group: "sur" },
 };
 
+const PERU_OUTLINE_PATH =
+  "M54 8 C45 16 38 30 36 44 C33 63 27 75 21 92 C14 111 16 129 23 145 C30 160 31 176 36 190 C43 209 54 228 70 241 C81 249 91 244 96 231 C102 216 112 203 125 192 C140 180 151 164 154 145 C157 129 149 114 143 101 C135 84 131 68 130 49 C129 31 119 22 104 21 C91 20 81 15 70 8 C64 4 59 4 54 8 Z";
+
 const GROUP_LABEL: Record<string, string> = {
   norte: "Norte",
   centro: "Centro",
@@ -93,6 +96,25 @@ export function PeruMap({
           aria-label="Mapa coroplético simplificado del Perú por región"
           className="mx-auto h-[280px] w-full max-w-[220px]"
         >
+          <path
+            d={PERU_OUTLINE_PATH}
+            fill="var(--color-muted)"
+            fillOpacity={0.18}
+            stroke="var(--color-border)"
+            strokeOpacity={0.36}
+            strokeWidth={6}
+            vectorEffect="non-scaling-stroke"
+            aria-hidden
+          />
+          <path
+            d={PERU_OUTLINE_PATH}
+            fill="none"
+            stroke="var(--color-foreground)"
+            strokeOpacity={0.42}
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            aria-hidden
+          />
           {withGeo.map((r) => {
             const shape = REGION_SHAPES[r.region];
             const t = intensity(r);

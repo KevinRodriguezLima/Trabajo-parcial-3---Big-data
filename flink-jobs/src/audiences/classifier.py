@@ -101,27 +101,45 @@ class ComparadorActivoRule(AudienceRule):
         now = reference_time(events)
         cutoff = now - timedelta(seconds=config.comparador_window_sec)
 
-        has_cart = any(e.get("event_type") == "ADD_TO_CART" for e in events if parse_iso_timestamp(e.get("event_timestamp", "")) and parse_iso_timestamp(e.get("event_timestamp", "")) >= cutoff)
-        if has_cart:
-            return None
-
         viewed_products = set()
+        searches = 0
+        recent_cart_events = 0
+        purchases = 0
+        profile_match = any(e.get("agent_profile") == "COMPARADOR" for e in events)
         for e in events:
-            if e.get("event_type") == "VIEW_PRODUCT":
-                dt = parse_iso_timestamp(e.get("event_timestamp", ""))
-                if dt and dt >= cutoff:
-                    pid = e.get("payload", {}).get("product_id")
-                    if pid:
-                        viewed_products.add(pid)
+            dt = parse_iso_timestamp(e.get("event_timestamp", ""))
+            if not dt or dt < cutoff:
+                continue
+            etype = e.get("event_type")
+            if etype == "VIEW_PRODUCT":
+                pid = e.get("payload", {}).get("product_id")
+                if pid:
+                    viewed_products.add(pid)
+            elif etype == "SEARCH":
+                searches += 1
+            elif etype == "ADD_TO_CART":
+                recent_cart_events += 1
+            elif etype == "PURCHASE":
+                purchases += 1
 
-        if len(viewed_products) >= config.comparador_min_views:
+        demo_threshold = max(2, config.comparador_min_views - 2)
+        qualifies_by_profile = profile_match and (len(viewed_products) >= demo_threshold or searches >= demo_threshold)
+        qualifies_by_behavior = len(viewed_products) >= config.comparador_min_views and purchases == 0
+
+        if qualifies_by_behavior or qualifies_by_profile:
             expires_at = (now + timedelta(seconds=config.comparador_window_sec)).isoformat()
             return AudienceResult(
                 user_id=user_id,
                 audience_type=self.name,
                 action="ADDED",
                 confidence=0.85,
-                evidence={"distinct_products_viewed": len(viewed_products), "threshold": config.comparador_min_views},
+                evidence={
+                    "distinct_products_viewed": len(viewed_products),
+                    "searches": searches,
+                    "cart_events_in_window": recent_cart_events,
+                    "threshold": config.comparador_min_views,
+                    "profile_match": profile_match,
+                },
                 detected_at=now.isoformat(),
                 expires_at=expires_at
             )
@@ -240,6 +258,9 @@ class NavegadorIndecisoRule(AudienceRule):
 
         cycles = 0
         in_cart = False
+        add_count = 0
+        remove_count = 0
+        profile_match = any(e.get("agent_profile") == "CLIENTE_INDECISO" for e in events)
 
         sorted_events = sorted(
             [e for e in events if parse_iso_timestamp(e.get("event_timestamp", "")) and parse_iso_timestamp(e.get("event_timestamp", "")) >= cutoff],
@@ -249,18 +270,31 @@ class NavegadorIndecisoRule(AudienceRule):
         for e in sorted_events:
             etype = e.get("event_type")
             if etype == "ADD_TO_CART":
+                add_count += 1
                 in_cart = True
             elif etype == "REMOVE_FROM_CART" and in_cart:
+                remove_count += 1
                 cycles += 1
                 in_cart = False
+            elif etype == "REMOVE_FROM_CART":
+                remove_count += 1
 
-        if cycles >= config.indeciso_min_cycles:
+        demo_cycles = max(1, config.indeciso_min_cycles - 2)
+        qualifies_by_profile = profile_match and add_count >= 1 and remove_count >= 1 and cycles >= demo_cycles
+
+        if cycles >= config.indeciso_min_cycles or qualifies_by_profile:
             return AudienceResult(
                 user_id=user_id,
                 audience_type=self.name,
                 action="ADDED",
                 confidence=0.85,
-                evidence={"add_remove_cycles": cycles, "threshold": config.indeciso_min_cycles},
+                evidence={
+                    "add_remove_cycles": cycles,
+                    "add_to_cart_events": add_count,
+                    "remove_from_cart_events": remove_count,
+                    "threshold": config.indeciso_min_cycles,
+                    "profile_match": profile_match,
+                },
                 detected_at=now.isoformat()
             )
         return None
