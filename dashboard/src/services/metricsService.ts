@@ -321,6 +321,7 @@ export class ScenarioEngine {
         active_alerts: this.sparkStore.active_alerts ?? [],
       },
       events_by_type: this.buildEventsByType(),
+      event_type_intervals: { buckets: [], rows: [] },
       audiences: this.buildAudiences(activeUsers),
       top_viewed_products: this.buildProducts("views"),
       top_purchased_products: this.buildProducts("purchases"),
@@ -355,7 +356,7 @@ export class ScenarioEngine {
 
   private buildAudiences(activeUsers: number): AudienceMetric[] {
     return AUDIENCES.map((seed, index) => {
-      const bump = this.scenario === "BASE" ? 1 : seed.id === "estacionales" || seed.id === "alta-intencion" ? 1.35 : 1.08;
+      const bump = this.scenario === "BASE" ? 1 : 1.08;
       const users = Math.round(activeUsers * seed.weight * bump);
       const rng = createRng(hashString(seed.id + this.scenario));
       const history = Array.from({ length: 12 }, (_, i) =>
@@ -515,7 +516,7 @@ export function buildScenarioResults(scenarios: Scenario[]): ScenarioResult[] {
       failed_payments: Math.round(purchases * cfg.failedPaymentRate),
       avg_latency_ms: cfg.latency,
       alerts,
-      critical_alerts: Math.round(alerts * (0.18 + cfg.alertRate * 0.5)),
+      critical_alerts: 0,
     };
   });
 }

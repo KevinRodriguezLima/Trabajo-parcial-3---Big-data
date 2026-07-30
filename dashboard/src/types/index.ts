@@ -98,6 +98,21 @@ export interface EventTypeMetric {
   percentage: number;
 }
 
+export interface EventTypeIntervalCell {
+  bucket: string;
+  value: number;
+}
+
+export interface EventTypeIntervalRow {
+  event_type: EventType;
+  cells: EventTypeIntervalCell[];
+}
+
+export interface EventTypeIntervalMatrix {
+  buckets: string[];
+  rows: EventTypeIntervalRow[];
+}
+
 export interface AudienceMetric {
   id: string;
   name: string;
@@ -210,6 +225,7 @@ export interface DashboardMetrics {
   deltas: DeltaMetrics;
   sparklines: Record<keyof DeltaMetrics, number[]>;
   events_by_type: EventTypeMetric[];
+  event_type_intervals: EventTypeIntervalMatrix;
   audiences: AudienceMetric[];
   top_viewed_products: ProductMetric[];
   top_purchased_products: ProductMetric[];

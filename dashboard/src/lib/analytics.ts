@@ -5,6 +5,7 @@
  */
 import type {
   DashboardMetrics,
+  EventTypeIntervalMatrix,
   EventType,
   ProductMetric,
   ScenarioResult,
@@ -279,6 +280,27 @@ export function buildHeatmap(
   });
   rows.forEach((r) => r.cells.forEach((c) => (c.intensity = max === 0 ? 0 : c.value / max)));
   return { buckets, rows, max };
+}
+
+/** Construye el heatmap desde conteos reales event_type × intervalo enviados por el backend. */
+export function buildHeatmapFromIntervals(matrix?: EventTypeIntervalMatrix): HeatmapData | null {
+  if (!matrix || matrix.buckets.length === 0 || matrix.rows.length === 0) return null;
+  let max = 0;
+  const rows = matrix.rows.map((row) => {
+    const cells = row.cells.map((cell) => {
+      const value = Number(cell.value || 0);
+      max = Math.max(max, value);
+      return {
+        eventType: row.event_type,
+        bucket: cell.bucket,
+        value,
+        intensity: 0,
+      };
+    });
+    return { eventType: row.event_type, cells, total: cells.reduce((a, c) => a + c.value, 0) };
+  });
+  rows.forEach((row) => row.cells.forEach((cell) => (cell.intensity = max === 0 ? 0 : cell.value / max)));
+  return { buckets: matrix.buckets, rows, max };
 }
 
 export type Quadrant = "estrella" | "fuga" | "oculto" | "bajo";

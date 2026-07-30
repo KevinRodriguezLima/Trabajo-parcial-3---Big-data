@@ -43,6 +43,7 @@ EVENT_CATEGORY = {
     "MOTION_DETECTED": "IOT",
     "SOCIAL_POST": "DIGITAL",
 }
+EVENT_TYPES = tuple(EVENT_CATEGORY.keys())
 
 AUDIENCE_LABELS = {
     "COMPRADOR_COMPULSIVO": "Comprador compulsivo",
@@ -177,7 +178,13 @@ def fetch_alerts(conn, scenario: str) -> List[Dict[str, Any]]:
     return [
         {
             "id": row["alert_id"],
-            "level": row["severity"] if row["severity"] in ("INFO", "WARNING", "CRITICAL") else "WARNING",
+            "level": (
+                "WARNING"
+                if row["severity"] == "CRITICAL"
+                else row["severity"]
+                if row["severity"] in ("INFO", "WARNING")
+                else "WARNING"
+            ),
             "title": row["alert_type"].replace("_", " ").title(),
             "description": row["message"],
             "timestamp": row["detected_at"].isoformat(),
@@ -210,6 +217,54 @@ def build_events_by_type(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         }
         for event_type, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
     ]
+
+
+def build_event_type_intervals(conn, scenario: str, bucket_count: int = 12) -> Dict[str, Any]:
+    rows = conn.execute(
+        """
+        WITH recent AS (
+            SELECT event_type, date_trunc('minute', event_timestamp) AS bucket
+            FROM events
+            WHERE scenario = %s
+            ORDER BY event_timestamp DESC
+            LIMIT 8000
+        ),
+        buckets AS (
+            SELECT DISTINCT bucket
+            FROM recent
+            ORDER BY bucket DESC
+            LIMIT %s
+        )
+        SELECT to_char(r.bucket, 'HH24:MI') AS bucket,
+               r.event_type,
+               count(*) AS events
+        FROM recent r
+        JOIN buckets b ON b.bucket = r.bucket
+        GROUP BY r.bucket, r.event_type
+        ORDER BY r.bucket ASC, r.event_type ASC
+        """,
+        (scenario, bucket_count),
+    ).fetchall()
+    buckets = []
+    counts: Dict[tuple[str, str], int] = {}
+    for row in rows:
+        bucket = str(row["bucket"])
+        if bucket not in buckets:
+            buckets.append(bucket)
+        counts[(str(row["event_type"]), bucket)] = int(row["events"] or 0)
+    return {
+        "buckets": buckets,
+        "rows": [
+            {
+                "event_type": event_type,
+                "cells": [
+                    {"bucket": bucket, "value": counts.get((event_type, bucket), 0)}
+                    for bucket in buckets
+                ],
+            }
+            for event_type in EVENT_TYPES
+        ],
+    }
 
 
 def build_products(viewed: Dict[str, Any], purchased: Dict[str, Any]):
@@ -388,7 +443,7 @@ def build_infrastructure(conn, processed: int, alerts_count: int) -> List[Dict[s
         "simuladores": rejected,
         "productores": failed,
         "kafka": failed,
-        "flink": alerts_count,
+        "flink": 0,
         "backend": 0,
         "transporte": 0,
         "dashboard": 0,
@@ -453,6 +508,7 @@ def empty_snapshot(scenario: str) -> Dict[str, Any]:
             "active_alerts": [],
         },
         "events_by_type": [],
+        "event_type_intervals": {"buckets": [], "rows": []},
         "audiences": [],
         "top_viewed_products": [],
         "top_purchased_products": [],
@@ -512,6 +568,7 @@ def build_snapshot(scenario: str) -> Dict[str, Any]:
                 "active_alerts": [len(alerts)],
             },
             "events_by_type": build_events_by_type(events_by_type),
+            "event_type_intervals": build_event_type_intervals(conn, scenario),
             "audiences": build_audiences(conn, active_users),
             "top_viewed_products": viewed_products,
             "top_purchased_products": purchased_products,

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Panel } from "@/components/common/Panel";
 import { ChartSkeleton, EmptyState } from "@/components/common/States";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
-import { buildHeatmap } from "@/lib/analytics";
+import { buildHeatmap, buildHeatmapFromIntervals } from "@/lib/analytics";
 import { CATEGORY_COLOR, eventColor } from "@/lib/palette";
 import { EVENT_CATEGORY } from "@/data/catalog";
 import { EVENT_TYPES } from "@/types";
@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils";
 
 /** Matriz tipo de evento × intervalo temporal, con intensidad de color por categoría. */
 export function EventHeatmap() {
-  const { throughput, loading, filters, setFilters } = useRealtimeDashboard();
+  const { snapshot, throughput, loading, filters, setFilters } = useRealtimeDashboard();
 
-  const heatmap = useMemo(() => buildHeatmap(throughput, EVENT_TYPES), [throughput]);
+  const heatmap = useMemo(
+    () => buildHeatmapFromIntervals(snapshot?.event_type_intervals) ?? buildHeatmap(throughput, EVENT_TYPES),
+    [snapshot?.event_type_intervals, throughput],
+  );
 
   const toggleRow = (eventType: (typeof EVENT_TYPES)[number]) => {
     setFilters({ eventType: filters.eventType === eventType ? "TODOS" : eventType });
@@ -32,7 +35,7 @@ export function EventHeatmap() {
     <Panel
       title="Mapa de calor: tipo de evento × intervalo"
       description="Volumen relativo de cada tipo de evento a lo largo de la ventana visible"
-      tooltip="Cada celda estima el volumen de eventos de un tipo dentro de un intervalo temporal, ponderado por su peso relativo en el flujo. Haz clic en una fila para filtrar por tipo de evento o en una columna para fijar la ventana temporal."
+      tooltip="Cada celda muestra eventos agrupados por tipo e intervalo temporal. En modo real sale de PostgreSQL; en modo demostración se estima desde el throughput."
       actions={
         <ul className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
           {Object.entries(CATEGORY_COLOR).map(([key, color]) => (
@@ -88,7 +91,7 @@ export function EventHeatmap() {
                       dimmed && "opacity-50",
                     )}
                     aria-label={`Filtrar por tipo de evento ${row.eventType}`}
-                    title={`${row.eventType} · ${formatInt(row.total)} eventos estimados`}
+                    title={`${row.eventType} · ${formatInt(row.total)} eventos`}
                   >
                     <span
                       className="h-2 w-2 shrink-0 rounded-sm"

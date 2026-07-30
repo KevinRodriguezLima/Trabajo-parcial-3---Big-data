@@ -44,7 +44,7 @@ class AnomalyDetector:
             alerts.append({
                 "alert_id": f"ALT_DROP_{uuid.uuid4().hex[:8]}",
                 "alert_type": "TRAFFIC_DROP",
-                "severity": "CRITICAL",
+                "severity": "WARNING",
                 "message": f"Caída drástica de tráfico: {round(current_eps, 1)} ev/s (Media esperada: {round(self.moving_average_eps, 1)} ev/s)",
                 "current_value": round(current_eps, 2),
                 "threshold_value": round(self.config.drop_multiplier * self.moving_average_eps, 2),
@@ -66,7 +66,7 @@ class AnomalyDetector:
                 alerts.append({
                     "alert_id": f"ALT_PAYMENT_{uuid.uuid4().hex[:8]}",
                     "alert_type": "HIGH_PAYMENT_FAILURE_RATE",
-                    "severity": "CRITICAL",
+                    "severity": "WARNING",
                     "message": f"Tasa de fallos en pasarela de pago inusualmente alta: {round(fail_pct, 1)}%",
                     "current_value": round(fail_pct, 2),
                     "threshold_value": self.config.payment_fail_threshold_pct,
