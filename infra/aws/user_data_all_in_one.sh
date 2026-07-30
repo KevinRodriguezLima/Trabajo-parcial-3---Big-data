@@ -101,6 +101,7 @@ WorkingDirectory=${PROJECT_DIR}/flink-jobs
 Environment=KAFKA_BOOTSTRAP_INTERNAL=localhost:29092
 Environment=POSTGRES_HOST=localhost
 Environment=FLINK_PUBLISH_OUTPUTS=true
+Environment=ALERT_HIGH_CART_PEN=1200
 ExecStart=${PROJECT_DIR}/.venv/bin/python -m src.main --bootstrap localhost:29092
 Restart=always
 RestartSec=5
